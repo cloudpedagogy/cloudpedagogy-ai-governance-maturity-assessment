@@ -13,6 +13,28 @@ This tool is a key component of the **Human–AI Governance Engineering** suite 
 
 ---
 
+## 🌐 Live Application (Local-First, Privacy-Preserving)
+
+👉 http://cloudpedagogy-ai-governance-maturity-assessment.s3-website.eu-west-2.amazonaws.com/
+
+This is a fully functional, browser-based application designed for real-world use.
+
+- Runs entirely client-side (no backend)
+- All data is stored locally in your browser (localStorage)
+- No data is transmitted, stored, or shared externally
+- No login or account required
+
+**Note:** Your data will remain on your device unless you export it or clear your browser storage.
+
+---
+
+## 🖼️ Interface Preview
+
+![AI Governance Maturity Assessment Screenshot](docs/screenshot.png)
+
+*Example view of the Governance Profile showing maturity distribution, interpreted patterns, and fragility signals.*
+
+---
 ## Usage Instructions
 
 ### 1. Initial Setup
