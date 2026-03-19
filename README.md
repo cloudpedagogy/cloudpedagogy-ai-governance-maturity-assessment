@@ -88,4 +88,7 @@ Access the bucket URL (e.g., `http://ai-governance-assessment.yourdomain.com.s3-
 3. **Build Prod**: `npm run build`
 
 ## License
-Open Source - CloudPedagogy Ecosystem.
+
+This project is open-source under the MIT License.
+
+Part of the CloudPedagogy ecosystem.
