@@ -1,0 +1,115 @@
+{
+  "dimensions": [
+    {
+      "id": "traceability",
+      "name": "Decision Traceability",
+      "description": "The ability to trace how and why AI-supported decisions were made.",
+      "reflective_prompts": [
+        "Can you reconstruct the logic behind a specific AI output from six months ago?",
+        "Are human overrides of AI decisions documented with reasoning?"
+      ],
+      "levels": [
+        "Ad-hoc or no record of AI decision logic.",
+        "Basic logging of inputs/outputs exists but lacks context.",
+        "Consistent documentation of decision logic and human oversight.",
+        "Fully auditable trail with clear rationale for every AI-influenced decision."
+      ]
+    },
+    {
+      "id": "boundary_clarity",
+      "name": "Human–AI Boundary Clarity",
+      "description": "Clarity on where AI responsibility ends and human accountability begins.",
+      "reflective_prompts": [
+        "Is it clear who is liable if an AI-generated workflow fails?",
+        "Do staff know when they must intervene vs. trust the AI?"
+      ],
+      "levels": [
+        "Undefined or blurred boundaries between human and AI roles.",
+        "Informal understanding of roles with frequent ambiguity.",
+        "Explicitly defined roles and hand-off points between humans and AI.",
+        "Systemic clarity with formalised accountability for all AI-supported outcomes."
+      ]
+    },
+    {
+      "id": "risk_management",
+      "name": "Risk Awareness & Management",
+      "description": "The degree to which AI-specific risks are identified and mitigated.",
+      "reflective_prompts": [
+        "Are edge cases for AI failure regularly tested?",
+        "Is there a protocol for 'turning off' or bypassing AI components?"
+      ],
+      "levels": [
+        "Reactive or no formal AI risk assessment.",
+        "Initial identification of risks but no systematic mitigation.",
+        "Regular risk scanning and integration into broader risk registers.",
+        "Proactive, dynamic risk management with automated alerts and fail-safes."
+      ]
+    },
+    {
+      "id": "accountability",
+      "name": "Oversight & Accountability",
+      "description": "Structures for monitoring AI performance and ensuring responsibility.",
+      "reflective_prompts": [
+        "Who reviews the overall health of the AI governance system?",
+        "Is there a dedicated role for AI governance oversight?"
+      ],
+      "levels": [
+        "Unclear or distributed oversight with no central accountability.",
+        "Isolated oversight of specific AI tools rather than the system.",
+        "Formal oversight roles and periodic governance reviews.",
+        "Institutionalised accountability with continuous monitoring and reporting."
+      ]
+    },
+    {
+      "id": "policy_alignment",
+      "name": "Policy & Governance Alignment",
+      "description": "Integration of AI practices with organisational values and legal requirements.",
+      "reflective_prompts": [
+        "Does your AI usage reflect your organisation's core values?",
+        "Are external regulatory requirements mapped to internal AI policies?"
+      ],
+      "levels": [
+        "No formal AI policy or misalignment with core values.",
+        "Generic AI policy that is rarely referenced in practice.",
+        "Tailored policies that guide most AI-related decisions.",
+        "Deep alignment where governance is baked into the technology lifecycle."
+      ]
+    },
+    {
+      "id": "review_practices",
+      "name": "Review & Reflection Practices",
+      "description": "The habit of periodically reviewing AI performance and governance efficacy.",
+      "reflective_prompts": [
+        "When was the last time we questioned if an AI tool was still necessary?",
+        "Do we hold post-mortems for AI-related errors?"
+      ],
+      "levels": [
+        "No structured review of AI systems or their impact.",
+        "Informal, occasional reviews often triggered by failure.",
+        "Scheduled, structured reviews of AI performance and governance.",
+        "Continuous reflection cycles that drive proactive system improvements."
+      ]
+    },
+    {
+      "id": "learning_capability",
+      "name": "Institutional Learning & Renewal",
+      "description": "The ability to learn from AI interactions and evolve governance structures.",
+      "reflective_prompts": [
+        "How do we capture 'lessons learned' from AI implementation?",
+        "Are governance structures updated based on new AI advancements?"
+      ],
+      "levels": [
+        "Static governance that does not adapt to change.",
+        "Slow, reactive updates to governance after major shifts.",
+        "Active learning where insights regularly inform governance updates.",
+        "Resilient, evolving governance that anticipates future shifts and challenges."
+      ]
+    }
+  ],
+  "levels": [
+    { "id": 0, "name": "Emerging", "description": "Governance is ad-hoc, informal, and reactive." },
+    { "id": 1, "name": "Developing", "description": "Basic structures exist but are inconsistent or siloed." },
+    { "id": 2, "name": "Established", "description": "Formally defined processes and clear accountabilities are in place." },
+    { "id": 3, "name": "Advanced", "description": "Governance is integrated, proactive, and continuously improving." }
+  ]
+}
