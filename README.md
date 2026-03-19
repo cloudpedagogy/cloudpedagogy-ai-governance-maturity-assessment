@@ -28,7 +28,7 @@ This is a fully functional, browser-based application designed for real-world us
 
 ---
 
-## 🖼️ Interface Preview
+## 🖼️ Screenshot
 
 ![AI Governance Maturity Assessment Screenshot](docs/screenshot.png)
 
