@@ -13,7 +13,7 @@ This tool is a key component of the **Human–AI Governance Engineering** suite 
 
 ---
 
-## 🌐 Live Application (Local-First, Privacy-Preserving)
+## 🌐 Live Hosted Version
 
 👉 http://cloudpedagogy-ai-governance-maturity-assessment.s3-website.eu-west-2.amazonaws.com/
 
