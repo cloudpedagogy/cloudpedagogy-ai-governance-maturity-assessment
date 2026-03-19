@@ -35,57 +35,47 @@ This is a fully functional, browser-based application designed for real-world us
 *Example view of the Governance Profile showing maturity distribution, interpreted patterns, and fragility signals.*
 
 ---
-## Usage Instructions
+## 🛠️ Getting Started
 
-### 1. Initial Setup
-Choose between **Individual Reflection** (for personal assessment) or **Team Discussion** (for collective workshops). Enter your organisation name to begin.
+### Clone the repository
 
-### 2. Performing the Assessment
-Navigate through the 7 governance dimensions. For each dimension:
-- Review the **Reflection Scaffold** to guide your thinking.
-- Select the **Maturity Level (0-3)** that best represents your current state.
-- Capture **Reflective Notes** to document evidence or specific observations.
+```bash
+git clone [repository-url]
+cd [repository-folder]
+```
 
-### 3. Reviewing the Governance Profile
-Upon completion, the tool generates a **Governance Profile**:
-- **Strong/Developing/Weak Areas**: Categorized based on your input.
-- **Interpreted Patterns**: Identification of structural imbalances (e.g., strong practice vs. weak oversight).
-- **Fragility Signals**: Warnings regarding potential governance failure points.
-- **Reflection Prompts**: Targeted questions for deeper institutional discussion.
+### Install dependencies
 
-### 4. Exporting Results
-Export your profile in **JSON** (for data archival), **Markdown** (for reports), or **PDF** (via the Print button).
+```bash
+npm install
+```
 
----
+### Run locally
 
-## Deployment Guide (AWS S3)
+```bash
+npm run dev
+```
 
-This application is a **static web app** and is fully compatible with AWS S3 static website hosting.
+Once running, your terminal will display a local URL (often http://localhost:5173). Open this in your browser to use the application.
 
-### 1. Build the Application
-Run the following command to generate the production-ready files:
+### Build for production
+
 ```bash
 npm run build
 ```
-This will create a `dist/` directory containing `index.html` and the required assets.
 
-### 2. Upload to S3
-1. Create a new S3 bucket (e.g., `ai-governance-assessment.yourdomain.com`).
-2. In the **Properties** tab, enable **Static website hosting**.
-3. Set the **Index document** to `index.html`.
-4. In the **Permissions** tab, disable **Block all public access** (unless using a CDN like CloudFront).
-5. Upload all files from the `dist/` folder to the root of your bucket.
-
-### 3. Verification
-Access the bucket URL (e.g., `http://ai-governance-assessment.yourdomain.com.s3-website-region.amazonaws.com`). The app will load with all features fully functional.
+The production build will be generated in the `dist/` directory and can be deployed to any static hosting service.
 
 ---
 
-## Local Development
+## 🔐 Privacy & Security
 
-1. **Install Dependencies**: `npm install`
-2. **Start Dev Server**: `npm run dev`
-3. **Build Prod**: `npm run build`
+- **Fully local**: All data remains in the user's browser  
+- **No backend**: No external API calls or database storage  
+- **Privacy-preserving**: No tracking or data exfiltration  
+- Suitable for use in sensitive organisational and governance contexts  
+
+---
 
 ## License
 
