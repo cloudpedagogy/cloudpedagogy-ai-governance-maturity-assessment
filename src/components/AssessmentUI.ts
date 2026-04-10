@@ -120,7 +120,7 @@ export class AssessmentUI {
                 <div class="nav-buttons" style="justify-content: center;">
                     <button type="button" class="primary" id="startBtn">${this.currentRecord.organisation_name ? 'Continue Assessment' : 'Begin Assessment'}</button>
                     <button type="button" class="secondary" id="demoBtn">Try Healthcare Demo</button>
-                    ${this.currentRecord.organisation_name ? `<button type="button" class="secondary" id="clearAll" style="color: #777;">Clear Progress</button>` : ''}
+                    ${this.currentRecord.organisation_name ? `<button type="button" class="secondary" id="clearAll" style="color: var(--color-text-secondary);">Clear Progress</button>` : ''}
                 </div>
             </div>
             
