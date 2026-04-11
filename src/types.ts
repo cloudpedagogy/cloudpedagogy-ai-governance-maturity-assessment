@@ -24,6 +24,13 @@ export interface AssessmentRecord {
     team_mode: boolean;
     scores: { [dimensionId: string]: number };
     notes: { [dimensionId: string]: string };
+    artefacts: Array<{ type: 'workflow' | 'decision' | 'document', ref: string, name: string }>;
+}
+
+export interface ComparisonResult {
+    previousDate: string;
+    deltas: { [dimensionId: string]: number };
+    overallChange: number;
 }
 
 export interface GovernanceProfile {
@@ -38,4 +45,7 @@ export interface GovernanceProfile {
     fragilitySignals: string[];
     improvementDirections: string[];
     reflectionPrompts: string[];
+    readinessIndex: number;
+    gapActions: Array<{ dimension: string, action: string, priority: 'Urgent' | 'Strategic' }>;
+    comparison?: ComparisonResult;
 }

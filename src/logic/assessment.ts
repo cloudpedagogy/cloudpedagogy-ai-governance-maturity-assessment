@@ -1,6 +1,7 @@
-import type { AssessmentRecord, Schema, GovernanceProfile } from '../types';
+import type { AssessmentRecord, Schema, GovernanceProfile, ComparisonResult } from '../types';
+import { getActionsForGaps } from './actions';
 
-export function calculateGovernanceProfile(schema: Schema, record: AssessmentRecord): GovernanceProfile {
+export function calculateGovernanceProfile(schema: Schema, record: AssessmentRecord, previousRecord?: AssessmentRecord): GovernanceProfile {
     const strong: string[] = [];
     const developing: string[] = [];
     const weak: string[] = [];
@@ -86,6 +87,36 @@ export function calculateGovernanceProfile(schema: Schema, record: AssessmentRec
     else if (avg >= 1.5) overallMaturity = "Established Maturity";
     else if (avg >= 0.5) overallMaturity = "Developing Maturity";
 
+    // Readiness Index Calculation (Equal weighting across 7 dimensions)
+    const maxPossibleTotal = schema.dimensions.length * 3;
+    const currentTotal = scores.reduce((a, b) => a + b, 0);
+    const readinessIndex = Math.round((currentTotal / maxPossibleTotal) * 100);
+
+    // Gap to Actions Integration
+    const gapActions = getActionsForGaps(record.scores);
+
+    // Snapshot Comparison Logic
+    let comparison: ComparisonResult | undefined;
+    if (previousRecord) {
+        const deltas: { [dimensionId: string]: number } = {};
+        let totalDelta = 0;
+        schema.dimensions.forEach(dim => {
+            const curr = record.scores[dim.id] || 0;
+            const prev = previousRecord.scores[dim.id] || 0;
+            deltas[dim.id] = curr - prev;
+            totalDelta += (curr - prev);
+        });
+        
+        const prevAvg = Object.values(previousRecord.scores).reduce((a, b) => a + b, 0) / schema.dimensions.length;
+        const currentAvg = avg;
+        
+        comparison = {
+            previousDate: previousRecord.date_created,
+            deltas,
+            overallChange: Math.round(((currentAvg - prevAvg) / 3) * 100) // Percentage shift relative to total scale
+        };
+    }
+
     return {
         overallMaturity,
         strong,
@@ -94,7 +125,10 @@ export function calculateGovernanceProfile(schema: Schema, record: AssessmentRec
         patterns,
         fragilitySignals,
         improvementDirections,
-        reflectionPrompts: prompts
+        reflectionPrompts: prompts,
+        readinessIndex,
+        gapActions,
+        comparison
     };
 }
 
@@ -109,10 +143,19 @@ Date: ${record.date_created}
 Mode: ${record.team_mode ? 'Team Discussion' : 'Individual Reflection'}
 
 ## Governance Profile Summary
+- **Governance Readiness Index**: ${profile.readinessIndex}%
 - **Overall State**: ${profile.overallMaturity}
 - **Strong Areas**: ${profile.strong.join(', ') || 'None'}
 - **Developing Areas**: ${profile.developing.join(', ') || 'None'}
 - **Areas to Strengthen**: ${profile.weak.join(', ') || 'None'}
+
+${profile.comparison ? `## Comparison with Previous (${profile.comparison.previousDate})
+- **Overall Shift**: ${profile.comparison.overallChange >= 0 ? '+' : ''}${profile.comparison.overallChange}%
+` : ''}
+
+## Strategic Recommended Actions (Gap-to-Action)
+${profile.gapActions.map(a => `- **[${a.priority}]** ${a.action}`).join('\n') || 'No immediate gap-based actions required.'}
+
 
 ## Interpreted Patterns
 ${profile.patterns.map(p => `### ${p.name}\n${p.implication}`).join('\n\n')}

@@ -2,6 +2,25 @@
 
 An institutional self-assessment instrument for evaluating organisational readiness in governing AI-supported systems.
 
+## 🔗 Role in the CloudPedagogy Ecosystem
+
+**Phase:** Phase 2 — Governance Pipeline
+
+**Role:**
+Evaluates institutional governance maturity and readiness by diagnosing gaps in strategic, ethical, and operational practice.
+
+**Upstream Inputs:**
+Audit outcomes from the **Risk Scanner** and aggregate metadata from the **Human-AI Decision Record**.
+
+**Downstream Outputs:**
+Generates strategic Gap-to-Action mapping used for institutional policymaking and executive governance review.
+
+**Does NOT:**
+- Perform granular risk audits of individual workflows.
+- Record live individual decision outcomes in production.
+
+For a full system overview, see: [SYSTEM_OVERVIEW.md](../SYSTEM_OVERVIEW.md)
+
 ## Overview
 
 This tool is a key component of the **Human–AI Governance Engineering** suite within the CloudPedagogy ecosystem. Built on **Capability-Driven Development (CDD)** principles, it prioritizes the interpretation of governance maturity over simple numerical scoring.
@@ -9,7 +28,30 @@ This tool is a key component of the **Human–AI Governance Engineering** suite 
 ### Strategic Context
 - **Governance-First**: Designed to reveal organisational blind spots and structural fragility.
 - **Insight-Driven**: Generates interpreted patterns and fragility signals, not just a score.
+- **Strategic Evaluation**: Includes a headline **Governance Readiness Index** and automated **Gap-to-Action** mapping.
+- **Trend Tracking**: Compares current assessment against historical snapshots or imported data.
 - **Privacy-Preserving**: Runs entirely in the browser; all data stays in `localStorage`.
+
+---
+
+## 🏛️ Strategic Evaluation System
+
+This tool has been strengthened to support institutional-level governance evaluation:
+
+### 1. Governance Readiness Index
+A headline metric (0–100%) providing a high-level view of governance maturity across all 7 dimensions. This score is recalculated independently of any design-time metrics to ensure audit integrity.
+
+### 2. Gap-to-Action Mapping
+Automated, rule-based recommendations for any dimensions scoring at Maturity Level 0 (Emerging) or 1 (Developing). These actions are designed to move the institution toward systematic governance.
+
+### 3. Artefact Linking
+Support for lightweight evidence linking, allowing maturity claims to be tied to specific human–AI workflows or decision records (referenced by ID).
+
+### 4. Trend Tracking & Comparison
+Supports side-by-side comparison with historical snapshots:
+- **LocalStorage History**: Automatically preserves the last 5 assessment reflections.
+- **Side-by-Side Upload**: Import a previous JSON profile to visualize governance progress or drift over time.
+
 
 ---
 

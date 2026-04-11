@@ -436,11 +436,58 @@ textarea {
 
 /* Badges / Tags (Standardised to plain text as requested) */
 .badge {
-  font-size: var(--font-size-meta);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  border: 1px solid currentColor;
+}
+
+.badge.urgent {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.badge.strategic {
+  background-color: #f0f9ff;
+  color: #075985;
+}
+
+.pill {
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: #f3f4f6;
+  color: #374151;
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: inline-block;
+  border: 1px solid var(--border-color);
+}
+
+.subtitle {
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.readiness-gauge {
+  width: 240px;
+  height: 8px;
+  background-color: #f3f4f6;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 1rem;
+}
+
+.readiness-fill {
+  height: 100%;
+  background-color: var(--color-primary-default, #111111);
+  transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Utilities */

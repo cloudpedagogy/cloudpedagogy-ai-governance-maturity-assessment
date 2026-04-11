@@ -21,7 +21,8 @@ export class AssessmentUI {
             date_created: new Date().toISOString().split('T')[0],
             team_mode: false,
             scores: {},
-            notes: {}
+            notes: {},
+            artefacts: []
         };
     }
 
@@ -190,7 +191,10 @@ export class AssessmentUI {
                 'traceability': 'Full audit logs for diagnostic AI are maintained and reviewed monthly.',
                 'accountability': 'Accountability is currently distributed across IT and clinical leads with no central oversight body.',
                 'policy_alignment': 'Internal AI policy is based on general data protection rather than specific AI ethics frameworks.'
-            }
+            },
+            artefacts: [
+                { type: 'workflow', ref: 'WF-HEALTH-001', name: 'Diagnostic Triage Cluster' }
+            ]
         };
     }
 
@@ -242,6 +246,20 @@ export class AssessmentUI {
                     <h3>2. Reflective notes (Optional)</h3>
                     <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">Capture ${this.currentRecord.team_mode ? 'team observations' : 'personal observations'} and evidence for your oversight teams.</p>
                     <textarea id="notes" placeholder="Enter reflective notes here...">${this.currentRecord.notes[dim.id] || ''}</textarea>
+                </div>
+
+                <div class="artefacts-section" style="margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
+                    <h3>3. Evidence & Artefacts (Optional)</h3>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">Link this maturity level to specific workflow designs or decision records.</p>
+                    <div id="artefactList" style="margin-bottom: 1rem;">
+                        ${this.currentRecord.artefacts
+                            .filter(a => a.type === 'workflow') 
+                            .map(a => `<div class="pill">${a.ref}</div>`).join('')}
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="artefactRef" placeholder="Reference ID (e.g. WF-101)" style="flex-grow: 1;">
+                        <button type="button" class="secondary" id="addArtefact">Add Reference</button>
+                    </div>
                 </div>
 
                 <div class="nav-buttons">
@@ -296,19 +314,97 @@ export class AssessmentUI {
             this.currentDimensionIndex++;
             this.render();
         });
+
+        this.container.querySelector('#addArtefact')?.addEventListener('click', (_e) => {
+            const input = this.container.querySelector('#artefactRef') as HTMLInputElement;
+            if (input.value) {
+                this.currentRecord.artefacts.push({
+                    type: 'workflow',
+                    ref: input.value,
+                    name: 'Manual Reference'
+                });
+                input.value = '';
+                this.saveToStorage();
+                this.render();
+            }
+        });
     }
 
-    private renderResults() {
-        const profile = calculateGovernanceProfile(this.schema, this.currentRecord);
+    private renderResults(previousRecord?: AssessmentRecord) {
+        const history = this.getHistory();
+        const latestHistory = previousRecord || (history.length > 0 ? history[0] : undefined);
+        const profile = calculateGovernanceProfile(this.schema, this.currentRecord, latestHistory);
+        
         this.container.innerHTML = `
             <div class="animate-fade">
-                <div class="results-header">
+                <div class="results-header" style="text-align: center; margin-bottom: 3rem;">
                     <h2>Governance Profile: ${this.currentRecord.organisation_name}</h2>
                     <p class="muted">${this.currentRecord.team_mode ? 'Team Discussion Mode' : 'Individual Reflection Mode'} &middot; ${this.currentRecord.date_created}</p>
-                    <p class="semibold" style="margin-top: 1rem;">Overall State: ${profile.overallMaturity}</p>
+                    
+                    <div class="readiness-index-container" style="margin-top: 2.5rem; display: flex; flex-direction: column; align-items: center;">
+                        <span class="subtitle">Governance Readiness Index</span>
+                        <div class="readiness-gauge">
+                            <div class="readiness-fill" style="width: ${profile.readinessIndex}%"></div>
+                        </div>
+                        <div style="font-size: 3rem; font-weight: 800; color: var(--color-primary-default); margin-top: 0.5rem;">${profile.readinessIndex}%</div>
+                        <p class="semibold" style="margin-top: 0.5rem; color: var(--color-text-secondary);">${profile.overallMaturity}</p>
+                    </div>
                 </div>
 
+                ${profile.comparison ? `
+                <div class="card" style="margin-bottom: 2rem; border: 1px solid var(--color-primary-light); background: #f0f9ff;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0;">Trend Comparison</h3>
+                        <span class="muted">Compared to ${profile.comparison.previousDate}</span>
+                    </div>
+                    <div style="display: flex; gap: 2rem; margin-top: 1rem;">
+                        <div style="flex: 1;">
+                            <span class="subtitle">Overall Shift</span>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: ${profile.comparison.overallChange >= 0 ? '#059669' : '#dc2626'}">
+                                ${profile.comparison.overallChange >= 0 ? '↑' : '↓'} ${Math.abs(profile.comparison.overallChange)}%
+                            </div>
+                        </div>
+                        <div style="flex: 2;">
+                            <span class="subtitle">Dimension Deltas</span>
+                            <div style="display: flex; gap: 4px; height: 10px; margin-top: 0.5rem;">
+                                ${Object.entries(profile.comparison.deltas).map(([id, delta]) => `
+                                    <div title="${id}: ${delta}" style="flex-grow: 1; background: ${delta > 0 ? '#10b981' : delta < 0 ? '#ef4444' : '#e5e7eb'}; border-radius: 1px;"></div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
                 <div class="profile-grid">
+                    <div class="card">
+                        <h3>Strategic Recommended Actions (Gap-to-Action)</h3>
+                        <div class="gap-action-table" style="margin-top: 1rem;">
+                            ${profile.gapActions.length > 0 ? profile.gapActions.map(a => `
+                                <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--border-color); align-items: flex-start;">
+                                    <span class="badge ${a.priority.toLowerCase()}">${a.priority}</span>
+                                    <div>
+                                        <div class="semibold" style="font-size: 0.875rem; color: var(--color-text-secondary); text-transform: capitalize;">${a.dimension.replace('_', ' ')}</div>
+                                        <div style="font-size: 0.9375rem; margin-top: 0.25rem;">${a.action}</div>
+                                    </div>
+                                </div>
+                            `).join('') : '<p class="muted" style="padding: 1rem;">No immediate gap-based actions identified. Governance practice is established.</p>'}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-grid" style="margin-top: 2rem;">
+                    <div class="card">
+                        <h3>Artefacts & Evidence</h3>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
+                            ${this.currentRecord.artefacts.length > 0 ? this.currentRecord.artefacts.map(a => `
+                                <div class="pill" title="${a.name}">${a.ref}</div>
+                            `).join('') : '<p class="muted">No artefacts linked to this assessment.</p>'}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-grid" style="margin-top: 2rem;">
                     <div class="card">
                         <h3>Institutional Portfolio</h3>
                         <div class="profile-column-container">
@@ -349,28 +445,14 @@ export class AssessmentUI {
                     </div>
                 </div>
 
-                <div class="results-grid">
-                    <div class="card">
-                        <h3>Improvement Directions</h3>
-                        <ul class="improvement-list">
-                            ${profile.improvementDirections.map(d => `<li>${d}</li>`).join('')}
-                        </ul>
-                    </div>
-
-                    <div class="card">
-                        <h3>Discussion & Reflection Prompts</h3>
-                        <ul class="reflection-list">
-                            ${profile.reflectionPrompts.map(p => `<li>${p}</li>`).join('')}
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="nav-buttons" style="margin-top: 3rem;">
+                <div class="nav-buttons" style="margin-top: 3rem; justify-content: center;">
                     <button type="button" class="secondary" id="jsonBtn">Export JSON</button>
                     <button type="button" class="secondary" id="mdBtn">Export Markdown</button>
                     <button type="button" class="primary" id="printBtn">Print Profile</button>
+                    <button type="button" class="secondary" id="compareBtn">Upload & Compare</button>
                     <button type="button" class="secondary" id="homeBtn">New Assessment</button>
                 </div>
+                <input type="file" id="compareUpload" style="display: none;" accept=".json">
             </div>
         `;
 
@@ -391,11 +473,56 @@ export class AssessmentUI {
             window.print();
         });
 
+        this.container.querySelector('#compareBtn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            (this.container.querySelector('#compareUpload') as HTMLInputElement).click();
+        });
+
+        this.container.querySelector('#compareUpload')?.addEventListener('change', (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (re) => {
+                    try {
+                        const prevData = JSON.parse(re.target?.result as string);
+                        // Re-render results with comparison
+                        const profileWithComp = calculateGovernanceProfile(this.schema, this.currentRecord, prevData);
+                        this.renderResultsWithComparison(profileWithComp, prevData);
+                    } catch (err) {
+                        alert('Invalid comparison file. Please upload a valid assessment JSON.');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
         this.container.querySelector('#homeBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
+            this.saveToHistory(); // Circular buffer save before clearing
             this.resetAssessment();
         });
     }
+
+    private renderResultsWithComparison(_profile: any, previousRecord: AssessmentRecord) {
+        this.renderResults(previousRecord); 
+    }
+
+    private saveToHistory() {
+        const history = this.getHistory();
+        // Circular buffer of 5
+        const newHistory = [this.currentRecord, ...history].slice(0, 5);
+        localStorage.setItem('ai_gov_history', JSON.stringify(newHistory));
+    }
+
+    private getHistory(): AssessmentRecord[] {
+        try {
+            const data = localStorage.getItem('ai_gov_history');
+            return data ? JSON.parse(data) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
 
     private resetAssessment() {
         localStorage.removeItem('ai_gov_assessment');
