@@ -1,48 +1,20 @@
-# AI Governance Maturity Assessment — User Instructions
+# Instructions
 
----
-### 2. What This Tool Does
-This strategic tool allows leadership and governance bodies to evaluate their institution's overall readiness to manage AI safely. It structures self-reflection across key governance domains (policy, infrastructure, training) to produce a strategic maturity profile.
+## What this tool does
+This tool is an institutional self-assessment instrument for evaluating organisational readiness in governing AI-supported systems. It evaluates governance maturity across 7 dimensions and generates a Strategic Gap-to-Action mapping.
 
----
-### 3. Role in the Ecosystem
-- **Phase:** Phase 2 — Governance Pipeline
-- **Role:** Strategic assessment of institutional AI governance readiness.
-- **Reference:** [../SYSTEM_OVERVIEW.md](../SYSTEM_OVERVIEW.md)
+## How capability is developed through use
+Capability is developed through structured interaction with the maturity schema. By reflecting on institutional practice against standardized levels, users develop a more granular understanding of AI governance requirements and organizational blind spots.
 
----
-### 4. When to Use This Tool
-- During annual institutional risk reviews or strategic planning cycles.
-- Before embarking on major AI procurement or deployment initiatives.
-- To baseline the institution's current governance stance and track improvements over time.
+## How governance is supported
+Governance is supported through:
+1. **Maturity Evaluation**: Systematic assessment of 7 key governance dimensions.
+2. **Artefact Linking**: Connecting maturity claims to specific human–AI workflows or decision records.
+3. **Gap-to-Action Mapping**: Automated recommendations for institutional strengthening.
+4. **Transparency Layer**: Optional capability and governance notes that make assumptions, risks, and rationales visible.
 
----
-### 5. Inputs
-- Manual entry through a structured, multi-domain questionnaire.
-
----
-### 6. How to Use (Step-by-Step)
-1. Assemble relevant stakeholders (e.g., IT, academic leadership, legal) to complete the assessment collaboratively.
-2. Navigate through the governance domains, selecting the statements that most accurately reflect current institutional reality.
-3. Provide contextual notes for any specific challenges or ongoing initiatives.
-4. Review the generated maturity profile and radar chart.
-5. Export the findings to form the basis of an institutional AI strategy.
-
----
-### 7. Key Outputs
-- A high-level visual profile of institutional governance maturity.
-- Identification of critical blind spots (e.g., strong on policy, weak on technical infrastructure).
-
----
-### 8. How It Connects to Other Tools
-- **Upstream:** Can be informed by specific capability deficits highlighted in the Phase 3 Capability tools.
-- **Downstream:** N/A (acts as a strategic endpoint).
-
----
-### 9. Limitations
-- It is a self-assessment tool; its accuracy depends entirely on honest reflection by the participants.
-- It evaluates high-level governance structure, not frontline technical capability.
-
----
-### 10. Tips
-- Do not let one individual complete this in a silo. The most valuable output often comes from the disagreements between different departments while answering.
+## Explanation of optional fields
+- **Capability Notes**: Capture how using this tool or specific workflows supports the development of practical AI capability.
+- **Governance Notes**: Explicitly record assumptions made during assessment, identified risks, or the strategic rationale for specific maturity ratings.
+- **Reflective Notes**: Per-dimension notes to capture observations and evidence.
+- **Artefacts**: References to supporting documentation or system IDs.

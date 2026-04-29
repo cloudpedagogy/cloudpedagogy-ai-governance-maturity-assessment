@@ -493,4 +493,61 @@ textarea {
 /* Utilities */
 .muted { color: var(--text-muted); font-size: var(--font-size-meta); }
 .semibold { font-weight: 600; }
-.bold { font-weight: 700; }
+/* Governance Layer Styling (Monochrome & Minimal) */
+.gov-layer-section {
+  color: #666;
+}
+
+.gov-summary {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.gov-summary::-webkit-details-marker {
+  display: none;
+}
+
+.gov-summary::before {
+  content: "+";
+  font-family: monospace;
+  font-size: 1.1rem;
+}
+
+details[open] .gov-summary::before {
+  content: "−";
+}
+
+.gov-field label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+  color: #333;
+}
+
+.gov-help {
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 0.75rem;
+}
+
+.gov-textarea {
+  font-size: 0.8125rem !important;
+  min-height: 80px !important;
+  border-color: #eee !important;
+  color: #444 !important;
+  background-color: #fafafa !important;
+}
+
+.gov-textarea:focus {
+  border-color: #ccc !important;
+}

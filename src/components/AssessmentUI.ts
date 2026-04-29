@@ -22,7 +22,9 @@ export class AssessmentUI {
             team_mode: false,
             scores: {},
             notes: {},
-            artefacts: []
+            artefacts: [],
+            capabilityNotes: '',
+            governanceNotes: ''
         };
     }
 
@@ -194,7 +196,9 @@ export class AssessmentUI {
             },
             artefacts: [
                 { type: 'workflow', ref: 'WF-HEALTH-001', name: 'Diagnostic Triage Cluster' }
-            ]
+            ],
+            capabilityNotes: 'This assessment supports institutional-level capability building for clinical governance leads.',
+            governanceNotes: 'Assumptions: The healthcare trust is moving towards centralized AI oversight. Risks: Distributed accountability remains a strategic concern.'
         };
     }
 
@@ -453,6 +457,26 @@ export class AssessmentUI {
                     <button type="button" class="secondary" id="homeBtn">New Assessment</button>
                 </div>
                 <input type="file" id="compareUpload" style="display: none;" accept=".json">
+
+                <!-- Lightweight capability and governance layer -->
+                <!-- Optional, non-blocking, and does not alter core workflow -->
+                <div class="gov-layer-section" style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
+                    <details class="gov-details">
+                        <summary class="gov-summary">Capability & Governance Notes (Optional)</summary>
+                        <div class="gov-content" style="padding-top: 1.5rem;">
+                            <div class="gov-field">
+                                <label for="capabilityNotes">Capability Notes</label>
+                                <p class="gov-help">How this tool supports development of practical AI capability through structured interaction.</p>
+                                <textarea id="capabilityNotes" class="gov-textarea" placeholder="Enter capability development notes...">${this.currentRecord.capabilityNotes || ''}</textarea>
+                            </div>
+                            <div class="gov-field" style="margin-top: 1.5rem;">
+                                <label for="governanceNotes">Governance Notes</label>
+                                <p class="gov-help">Make assumptions, risks, and decisions visible and reviewable.</p>
+                                <textarea id="governanceNotes" class="gov-textarea" placeholder="Enter governance, risk, or rationale notes...">${this.currentRecord.governanceNotes || ''}</textarea>
+                            </div>
+                        </div>
+                    </details>
+                </div>
             </div>
         `;
 
@@ -500,6 +524,16 @@ export class AssessmentUI {
             e.stopPropagation();
             this.saveToHistory(); // Circular buffer save before clearing
             this.resetAssessment();
+        });
+
+        // Gov Layer Listeners
+        this.container.querySelector('#capabilityNotes')?.addEventListener('input', (e) => {
+            this.currentRecord.capabilityNotes = (e.target as HTMLTextAreaElement).value;
+            this.saveToStorage();
+        });
+        this.container.querySelector('#governanceNotes')?.addEventListener('input', (e) => {
+            this.currentRecord.governanceNotes = (e.target as HTMLTextAreaElement).value;
+            this.saveToStorage();
         });
     }
 

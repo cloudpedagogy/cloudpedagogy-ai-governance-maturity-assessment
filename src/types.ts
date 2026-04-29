@@ -25,6 +25,8 @@ export interface AssessmentRecord {
     scores: { [dimensionId: string]: number };
     notes: { [dimensionId: string]: string };
     artefacts: Array<{ type: 'workflow' | 'decision' | 'document', ref: string, name: string }>;
+    capabilityNotes?: string;
+    governanceNotes?: string;
 }
 
 export interface ComparisonResult {
