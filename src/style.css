@@ -588,3 +588,56 @@ details[open] .gov-summary::before {
 .gov-textarea:focus {
   border-color: #ccc !important;
 }
+
+/* Batch 2: Evidence, Insights & Reflection Styling */
+.badge.workflow {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.badge.decision {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.badge.document {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.pill-item {
+  transition: border-color 0.15s ease;
+}
+
+.pill-item:hover {
+  border-color: #9ca3af;
+}
+
+.pill-delete {
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.pill-delete:hover {
+  color: #ef4444 !important;
+  transform: scale(1.2);
+}
+
+.improvement-item {
+  transition: border-color 0.15s ease;
+}
+
+.improvement-item:hover {
+  border-color: #cbd5e1;
+}
+
+.reflection-card {
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.reflection-card:hover {
+  border-color: var(--color-primary-default);
+}
+
+.disclaimer-banner {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}

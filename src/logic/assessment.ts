@@ -1,5 +1,37 @@
 import type { AssessmentRecord, Schema, GovernanceProfile, ComparisonResult } from '../types';
 import { getActionsForGaps } from './actions';
+import defaultSchemaData from '../../MATURITY_SCHEMA.json';
+
+const DIMENSION_IMPROVEMENT_DIRECTIONS: Record<string, { priority: string; strengthening: string }> = {
+    traceability: {
+        priority: "Establishing standard logging and audit trails for AI tool usage, system prompts, and model versions.",
+        strengthening: "Advancing from periodic logs toward automated, continuous audit trails with reproducible provenance."
+    },
+    boundary_clarity: {
+        priority: "Defining explicit operational boundaries and mandatory human-in-the-loop escalation triggers for automated tasks.",
+        strengthening: "Codifying technical guardrails and testing procedures to enforce human-AI boundaries dynamically."
+    },
+    risk_management: {
+        priority: "Implementing a structured AI risk classification framework with formal failure-mode assessments.",
+        strengthening: "Transitioning from periodic risk assessments toward continuous monitoring and integrated incident response."
+    },
+    accountability: {
+        priority: "Clarifying accountability roles, formal governance ownership, and institutional escalation paths for AI outcomes.",
+        strengthening: "Establishing executive-sponsored oversight with cross-functional representation across technical and operational units."
+    },
+    policy_alignment: {
+        priority: "Codifying an organisation-wide AI acceptable use policy aligned with institutional risk tolerance.",
+        strengthening: "Establishing regular policy review cadences to keep internal standards synchronized with evolving regulations."
+    },
+    review_practices: {
+        priority: "Formalising periodic review cycles and post-deployment audits for AI-supported operational workflows.",
+        strengthening: "Augmenting internal periodic reviews with multi-stakeholder evaluation and independent validation."
+    },
+    learning_capability: {
+        priority: "Embedding post-incident debriefs and governance feedback loops into institutional learning and capability programs.",
+        strengthening: "Translating post-incident retrospectives into automated guardrail updates and sector knowledge-sharing."
+    }
+};
 
 export function calculateGovernanceProfile(schema: Schema, record: AssessmentRecord, previousRecord?: AssessmentRecord): GovernanceProfile {
     const strong: string[] = [];
@@ -16,10 +48,10 @@ export function calculateGovernanceProfile(schema: Schema, record: AssessmentRec
     const patterns: Array<{ name: string; implication: string }> = [];
     const fragilitySignals: string[] = [];
 
-    // Pattern Detection Logic
+    // Helper to read score
     const score = (id: string) => record.scores[id] || 0;
 
-    // 1. Strong practice but weak oversight
+    // Pattern 1: Strong applied practice but weak oversight
     if ((score('traceability') >= 2 || score('boundary_clarity') >= 2) && score('accountability') <= 1) {
         patterns.push({
             name: "Strong Applied Practice, Weak Oversight",
@@ -28,7 +60,7 @@ export function calculateGovernanceProfile(schema: Schema, record: AssessmentRec
         fragilitySignals.push("Accountability roles are unclear or distributed too thinly.");
     }
 
-    // 2. High AI usage/reliance with low review capability
+    // Pattern 2: High AI usage/reliance with low review capability
     if (score('risk_management') >= 2 && score('review_practices') <= 1) {
         patterns.push({
             name: "High Reliance, Low Reflection",
@@ -37,7 +69,7 @@ export function calculateGovernanceProfile(schema: Schema, record: AssessmentRec
         fragilitySignals.push("Review cycles are informal or non-existent for high-impact systems.");
     }
 
-    // 3. Clear awareness but weak institutionalisation
+    // Pattern 3: Clear awareness but weak institutionalisation
     if (score('risk_management') >= 2 && (score('policy_alignment') <= 1 || score('accountability') <= 1)) {
         patterns.push({
             name: "High Awareness, Low Institutionalisation",
@@ -46,7 +78,7 @@ export function calculateGovernanceProfile(schema: Schema, record: AssessmentRec
         fragilitySignals.push("Internal practices are not consistently mapped to formal policy.");
     }
 
-    // 4. Static Governance (Low learning)
+    // Pattern 4: Compliance-First, Learning-Slow
     if (score('policy_alignment') >= 2 && score('learning_capability') <= 1) {
         patterns.push({
             name: "Compliance-First, Learning-Slow",
@@ -55,15 +87,70 @@ export function calculateGovernanceProfile(schema: Schema, record: AssessmentRec
         fragilitySignals.push("Lack of post-deployment feedback loops into governance design.");
     }
 
-    // Improvement Directions
+    // Pattern 5: Operational Deployment Without Defined Boundaries (Candidate A)
+    if (score('boundary_clarity') <= 1 && (score('risk_management') >= 2 || score('traceability') >= 2)) {
+        patterns.push({
+            name: "Operational Deployment Without Defined Boundaries",
+            implication: "AI workflows are tracked or evaluated, but lack explicit operational boundaries and human intervention thresholds."
+        });
+        fragilitySignals.push("Potential governance weakness: Workflows operate without explicit limits on automated decision authority or human override points.");
+    }
+
+    // Pattern 6: Active Experimentation Without Policy Foundation (Candidate B)
+    if (score('learning_capability') >= 2 && score('policy_alignment') <= 0) {
+        patterns.push({
+            name: "Active Experimentation Without Policy Foundation",
+            implication: "Teams actively iterate and learn with AI tools, but operate without foundational institutional acceptable-use guardrails."
+        });
+        fragilitySignals.push("Potential governance weakness: Accelerated AI experimentation without baseline policy increases unmanaged risk exposure.");
+    }
+
+    // Improvement Directions across all Seven Dimensions
+    const scoredKeys = Object.keys(record.scores);
     const improvementDirections: string[] = [];
-    if (weak.length > 0) {
-        if (record.scores['accountability'] <= 1) improvementDirections.push("Clarifying accountability roles and central oversight.");
-        if (record.scores['review_practices'] <= 1) improvementDirections.push("Formalising periodic review cycles for AI-supported workflows.");
-        if (record.scores['learning_capability'] <= 1) improvementDirections.push("Embedding governance updates into institutional learning loops.");
+
+    if (scoredKeys.length === 0) {
+        improvementDirections.push("Complete assessment questions to generate targeted governance improvement directions.");
     } else {
-        improvementDirections.push("Continuing to stress-test governance under increased AI scale.");
-        improvementDirections.push("Sharing internal governance patterns with external partners.");
+        const weakDimensions: string[] = [];
+        const level2Dimensions: string[] = [];
+
+        schema.dimensions.forEach(dim => {
+            if (record.scores[dim.id] !== undefined) {
+                const s = record.scores[dim.id];
+                if (s <= 1) {
+                    weakDimensions.push(dim.id);
+                } else if (s === 2) {
+                    level2Dimensions.push(dim.id);
+                }
+            }
+        });
+
+        if (weakDimensions.length > 0) {
+            // Prioritize remedial guidance for weak or developing dimensions
+            weakDimensions.forEach(dimId => {
+                const dir = DIMENSION_IMPROVEMENT_DIRECTIONS[dimId];
+                if (dir) {
+                    improvementDirections.push(dir.priority);
+                }
+            });
+        } else if (level2Dimensions.length > 0) {
+            // Differentiated strengthening guidance for established Level 2 dimensions
+            level2Dimensions.forEach(dimId => {
+                const dir = DIMENSION_IMPROVEMENT_DIRECTIONS[dimId];
+                if (dir) {
+                    improvementDirections.push(dir.strengthening);
+                }
+            });
+        } else {
+            // All answered dimensions are Level 3 (Comprehensive)
+            improvementDirections.push("Continuing to stress-test governance resilience under increased AI deployment scale.");
+            improvementDirections.push("Sharing internal governance patterns and benchmarks with sector partners.");
+        }
+
+        if (scoredKeys.length < schema.dimensions.length) {
+            improvementDirections.push(`Assessment is partially completed (${scoredKeys.length}/${schema.dimensions.length} dimensions scored). Complete remaining dimensions for full institutional directions.`);
+        }
     }
 
     // Reflection Prompts based on Team Mode
@@ -132,15 +219,73 @@ export function calculateGovernanceProfile(schema: Schema, record: AssessmentRec
     };
 }
 
-export function exportToJSON(record: AssessmentRecord) {
+export function exportToJSON(record: AssessmentRecord): string {
     return JSON.stringify(record, null, 2);
 }
 
-export function exportToMarkdown(record: AssessmentRecord, profile: GovernanceProfile): string {
+function escapeMdCell(text: string): string {
+    return text.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').trim();
+}
+
+export function exportToMarkdown(record: AssessmentRecord, profile: GovernanceProfile, schema?: Schema): string {
+    const activeSchema = schema || (defaultSchemaData as Schema);
+    const orgName = record.organisation_name ? record.organisation_name.trim() : 'Unnamed Organisation';
+    const modeName = record.team_mode ? 'Team Discussion' : 'Individual Reflection';
+
+    // Dimension breakdown rows
+    const levelNames: Record<number, string> = {
+        0: 'Unmanaged (0)',
+        1: 'Documented (1)',
+        2: 'Systematic (2)',
+        3: 'Comprehensive (3)'
+    };
+
+    const tableRows = activeSchema.dimensions.map(dim => {
+        const hasScore = record.scores[dim.id] !== undefined;
+        const scoreVal = hasScore ? `${record.scores[dim.id]}/3` : 'Unscored';
+        const levelLabel = hasScore ? (levelNames[record.scores[dim.id]] || `${record.scores[dim.id]}`) : 'Not Assessed';
+        const noteText = record.notes && record.notes[dim.id] ? record.notes[dim.id].trim() : 'None recorded';
+        
+        const linkedArts = (record.artefacts || []).filter(a => a.dimensionId === dim.id);
+        const artsText = linkedArts.length > 0
+            ? linkedArts.map(a => `${a.ref}${a.name && a.name !== a.ref ? ` (${a.name})` : ''}`).join('; ')
+            : 'None';
+
+        return `| ${escapeMdCell(dim.name)} | ${escapeMdCell(scoreVal)} | ${escapeMdCell(levelLabel)} | ${escapeMdCell(noteText)} | ${escapeMdCell(artsText)} |`;
+    }).join('\n');
+
+    // Linked vs unlinked artefacts portfolio
+    const unlinkedArts = (record.artefacts || []).filter(a => !a.dimensionId);
+    const linkedArts = (record.artefacts || []).filter(a => Boolean(a.dimensionId));
+
+    let artefactsSection = '### Linked Evidence by Dimension\n';
+    if (linkedArts.length === 0) {
+        artefactsSection += '- No dimension-specific evidence linked.\n';
+    } else {
+        activeSchema.dimensions.forEach(dim => {
+            const items = linkedArts.filter(a => a.dimensionId === dim.id);
+            if (items.length > 0) {
+                artefactsSection += `- **${dim.name}**:\n`;
+                items.forEach(a => {
+                    artefactsSection += `  - [${a.type}] ${a.ref}${a.name && a.name !== a.ref ? ` — ${a.name}` : ''}\n`;
+                });
+            }
+        });
+    }
+
+    if (unlinkedArts.length > 0) {
+        artefactsSection += '\n### General / Institutional Evidence (Legacy or Unlinked)\n';
+        unlinkedArts.forEach(a => {
+            artefactsSection += `- [${a.type}] ${a.ref}${a.name && a.name !== a.ref ? ` — ${a.name}` : ''}\n`;
+        });
+    }
+
     return `
-# AI Governance Profile: ${record.organisation_name}
+# AI Governance Profile: ${orgName}
 Date: ${record.date_created}
-Mode: ${record.team_mode ? 'Team Discussion' : 'Individual Reflection'}
+Mode: ${modeName}
+
+> **Self-Assessment Notice & Disclaimer**: This assessment record represents internal self-reported practices and institutional reflection across seven governance dimensions. It is intended for capability development and strategic prioritization, not as external regulatory compliance certification or statutory legal assurance.
 
 ## Governance Profile Summary
 - **Governance Readiness Index**: ${profile.readinessIndex}%
@@ -153,23 +298,30 @@ ${profile.comparison ? `## Comparison with Previous (${profile.comparison.previo
 - **Overall Shift**: ${profile.comparison.overallChange >= 0 ? '+' : ''}${profile.comparison.overallChange}%
 ` : ''}
 
+## Dimension Breakdown & Maturity Scores
+| Dimension | Score | Maturity Level | Qualitative Notes | Linked Evidence |
+| :--- | :---: | :--- | :--- | :--- |
+${tableRows}
+
 ## Strategic Recommended Actions (Gap-to-Action)
-${profile.gapActions.map(a => `- **[${a.priority}]** ${a.action}`).join('\n') || 'No immediate gap-based actions required.'}
+${profile.gapActions.length > 0 ? profile.gapActions.map(a => `- **[${a.priority}]** ${a.action}`).join('\n') : '- No immediate gap-based actions required.'}
 
+## Directions for Strategic Improvement
+${profile.improvementDirections.length > 0 ? profile.improvementDirections.map(d => `- ${d}`).join('\n') : '- No improvement directions generated.'}
 
-## Interpreted Patterns
-${profile.patterns.map(p => `### ${p.name}\n${p.implication}`).join('\n\n')}
-
-## Fragility Signals
-${profile.fragilitySignals.map(s => `- ⚠ ${s}`).join('\n')}
-
-## Directions for Improvement
-${profile.improvementDirections.map(d => `- ${d}`).join('\n')}
-
-## Reflection Prompts
+## Key Reflection Prompts (${modeName} Mode)
 ${profile.reflectionPrompts.map(p => `- ${p}`).join('\n')}
 
-${record.capabilityNotes || record.governanceNotes ? `## Capability & Governance Notes
+## Interpreted Patterns
+${profile.patterns.length > 0 ? profile.patterns.map(p => `### ${p.name}\n${p.implication}`).join('\n\n') : 'No divergent patterns detected.'}
+
+## Governance Fragility Signals
+${profile.fragilitySignals.length > 0 ? profile.fragilitySignals.map(s => `- ⚠ ${s}`).join('\n') : '- No immediate fragility signals detected.'}
+
+## Evidence & Artefacts Portfolio
+${artefactsSection.trim()}
+
+${record.capabilityNotes || record.governanceNotes ? `## Institutional Capability & Governance Notes
 ${record.capabilityNotes ? `### Capability Development\n${record.capabilityNotes}\n` : ''}
 ${record.governanceNotes ? `### Governance & Rationale\n${record.governanceNotes}\n` : ''}
 ` : ''}
@@ -178,3 +330,4 @@ ${record.governanceNotes ? `### Governance & Rationale\n${record.governanceNotes
 *Generated by CloudPedagogy AI Governance Maturity Assessment (CDD-Driven)*
     `.trim();
 }
+

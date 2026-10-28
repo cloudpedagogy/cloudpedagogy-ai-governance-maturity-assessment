@@ -17,6 +17,14 @@ export interface Schema {
     levels: Level[];
 }
 
+export interface ArtefactRef {
+    id?: string;
+    type: 'workflow' | 'decision' | 'document';
+    ref: string;
+    name: string;
+    dimensionId?: string;
+}
+
 export interface AssessmentRecord {
     assessment_id: string;
     organisation_name: string;
@@ -24,7 +32,7 @@ export interface AssessmentRecord {
     team_mode: boolean;
     scores: { [dimensionId: string]: number };
     notes: { [dimensionId: string]: string };
-    artefacts: Array<{ type: 'workflow' | 'decision' | 'document', ref: string, name: string }>;
+    artefacts: ArtefactRef[];
     capabilityNotes?: string;
     governanceNotes?: string;
 }

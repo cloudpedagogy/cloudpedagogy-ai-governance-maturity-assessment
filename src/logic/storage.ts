@@ -1,4 +1,4 @@
-import type { AssessmentRecord } from '../types';
+import type { AssessmentRecord, ArtefactRef } from '../types';
 import { DEFAULT_DIMENSION_IDS } from './validation';
 
 export const STORAGE_KEYS = {
@@ -45,20 +45,26 @@ export function normalizeAssessmentRecord(
     }
 
     // Clean artefacts
-    const cleanArtefacts: Array<{ type: 'workflow' | 'decision' | 'document'; ref: string; name: string }> = [];
+    const cleanArtefacts: ArtefactRef[] = [];
     if (Array.isArray(obj.artefacts)) {
-        const validTypes = ['workflow', 'decision', 'document'];
+        const validTypes: Array<'workflow' | 'decision' | 'document'> = ['workflow', 'decision', 'document'];
+        let artIdx = 0;
         for (const item of obj.artefacts) {
             if (item && typeof item === 'object') {
                 const a = item as Record<string, unknown>;
                 const typeStr = String(a.type || 'workflow');
-                const safeType = validTypes.includes(typeStr)
+                const safeType = validTypes.includes(typeStr as 'workflow' | 'decision' | 'document')
                     ? (typeStr as 'workflow' | 'decision' | 'document')
                     : 'workflow';
+                const dimId = typeof a.dimensionId === 'string' && permittedDimensions.includes(a.dimensionId)
+                    ? a.dimensionId
+                    : undefined;
                 cleanArtefacts.push({
+                    id: typeof a.id === 'string' && a.id ? a.id : `art-${Date.now()}-${artIdx++}`,
                     type: safeType,
                     ref: typeof a.ref === 'string' ? a.ref : '',
-                    name: typeof a.name === 'string' ? a.name : 'Artefact'
+                    name: typeof a.name === 'string' ? a.name : 'Artefact',
+                    dimensionId: dimId
                 });
             }
         }

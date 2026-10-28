@@ -112,6 +112,11 @@ export function validateAssessmentRecord(
                 if (a.type !== undefined && !validTypes.includes(String(a.type))) {
                     errors.push(`Artefact at index ${idx} has invalid type "${String(a.type)}". Expected one of: ${validTypes.join(', ')}.`);
                 }
+                if (a.dimensionId !== undefined && typeof a.dimensionId !== 'string') {
+                    errors.push(`Artefact at index ${idx} 'dimensionId' must be a string if provided.`);
+                } else if (typeof a.dimensionId === 'string' && !permittedDimensionIds.includes(a.dimensionId)) {
+                    errors.push(`Artefact at index ${idx} has unrecognised dimensionId "${a.dimensionId}".`);
+                }
             });
         }
     }
@@ -149,7 +154,7 @@ export function validateAssessmentRecord(
     }
 
     const rawArtefacts = Array.isArray(obj.artefacts) ? obj.artefacts : [];
-    const cleanArtefacts = rawArtefacts.map((art) => {
+    const cleanArtefacts = rawArtefacts.map((art, idx) => {
         const a = art as Record<string, unknown>;
         const typeStr = String(a.type || 'workflow');
         const validTypes: Array<'workflow' | 'decision' | 'document'> = ['workflow', 'decision', 'document'];
@@ -157,9 +162,11 @@ export function validateAssessmentRecord(
             ? (typeStr as 'workflow' | 'decision' | 'document')
             : 'workflow';
         return {
+            id: typeof a.id === 'string' && a.id ? a.id : `art-${Date.now()}-${idx}`,
             type: safeType,
             ref: typeof a.ref === 'string' ? a.ref : '',
-            name: typeof a.name === 'string' ? a.name : 'Artefact'
+            name: typeof a.name === 'string' ? a.name : 'Artefact',
+            dimensionId: typeof a.dimensionId === 'string' && permittedDimensionIds.includes(a.dimensionId) ? a.dimensionId : undefined
         };
     });
 

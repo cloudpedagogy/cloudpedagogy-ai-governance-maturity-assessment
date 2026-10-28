@@ -1,4 +1,4 @@
-import type { Schema, AssessmentRecord } from '../types';
+import type { Schema, AssessmentRecord, ArtefactRef } from '../types';
 import { calculateGovernanceProfile, exportToJSON, exportToMarkdown } from '../logic/assessment';
 import { escapeHtml, escapeAttr } from '../logic/security';
 import { validateAssessmentRecord } from '../logic/validation';
@@ -354,16 +354,38 @@ export class AssessmentUI {
                 </div>
 
                 <div class="artefacts-section" style="margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
-                    <h3>3. Evidence & Artefacts (Optional)</h3>
-                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">Link this maturity level to specific workflow designs or decision records.</p>
-                    <div id="artefactList" style="margin-bottom: 1rem;">
-                        ${this.currentRecord.artefacts
-                            .filter(a => a.type === 'workflow') 
-                            .map(a => `<div class="pill">${escapeHtml(a.ref)}</div>`).join('')}
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+                        <h3>3. Evidence & Artefacts (Optional)</h3>
+                        <span class="muted" style="font-size: 0.8125rem;">Dimension: ${escapeHtml(dim.name)}</span>
                     </div>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" id="artefactRef" placeholder="Reference ID (e.g. WF-101)" style="flex-grow: 1;">
-                        <button type="button" class="secondary" id="addArtefact">Add Reference</button>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                        Attach relevant workflow links, policy references, or decision records supporting this dimension score.
+                    </p>
+                    <div id="artefactList" class="artefact-pill-container" style="margin-bottom: 1.25rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                        ${(() => {
+                            const dimArtefacts = this.currentRecord.artefacts.filter(a => a.dimensionId === dim.id || (!a.dimensionId && this.currentDimensionIndex === 0));
+                            if (dimArtefacts.length === 0) {
+                                return '<span class="muted" style="font-size: 0.8125rem;">No evidence linked to this dimension yet.</span>';
+                            }
+                            return dimArtefacts.map(a => `
+                                <div class="pill pill-item" style="display: inline-flex; align-items: center; gap: 0.5rem; background: #f3f4f6; border: 1px solid var(--border-color); border-radius: 20px; padding: 4px 10px; font-size: 0.8125rem;">
+                                    <span class="badge ${escapeAttr(a.type)}" style="font-size: 0.6875rem; padding: 2px 6px;">${escapeHtml(a.type)}</span>
+                                    <strong style="color: var(--text-primary);">${escapeHtml(a.ref)}</strong>
+                                    ${a.name && a.name !== a.ref ? `<span class="muted" style="font-size: 0.75rem;">— ${escapeHtml(a.name)}</span>` : ''}
+                                    <button type="button" class="pill-delete" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Remove evidence ${escapeAttr(a.ref)}" style="background: none; border: none; cursor: pointer; color: #888; font-size: 1.1rem; line-height: 1; padding: 0 4px; margin-left: 2px;">&times;</button>
+                                </div>
+                            `).join('');
+                        })()}
+                    </div>
+                    <div class="artefact-input-row" style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                        <select id="artefactType" aria-label="Evidence Type" style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius); background: var(--bg-color); font-size: 0.875rem;">
+                            <option value="workflow">Workflow</option>
+                            <option value="decision">Decision</option>
+                            <option value="document">Document</option>
+                        </select>
+                        <input type="text" id="artefactRef" placeholder="Reference ID (e.g. WF-101, POL-202)" style="flex: 1; min-width: 140px; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius); font-size: 0.875rem;" aria-label="Evidence Reference">
+                        <input type="text" id="artefactName" placeholder="Description / Title (optional)" style="flex: 1.5; min-width: 180px; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius); font-size: 0.875rem;" aria-label="Evidence Description">
+                        <button type="button" class="secondary" id="addArtefact" style="padding: 0.5rem 1rem;">Add Evidence</button>
                     </div>
                 </div>
 
@@ -442,18 +464,40 @@ export class AssessmentUI {
 
         // Add artefact reference
         this.container.querySelector('#addArtefact')?.addEventListener('click', (_e) => {
-            const input = this.container.querySelector('#artefactRef') as HTMLInputElement;
-            const refVal = input ? input.value.trim() : '';
+            const typeSelect = this.container.querySelector('#artefactType') as HTMLSelectElement;
+            const refInput = this.container.querySelector('#artefactRef') as HTMLInputElement;
+            const nameInput = this.container.querySelector('#artefactName') as HTMLInputElement;
+
+            const refVal = refInput ? refInput.value.trim() : '';
+            const nameVal = nameInput ? nameInput.value.trim() : '';
+            const typeVal = typeSelect ? typeSelect.value : 'workflow';
+            const safeType = (['workflow', 'decision', 'document'].includes(typeVal) ? typeVal : 'workflow') as 'workflow' | 'decision' | 'document';
+
             if (refVal) {
-                this.currentRecord.artefacts.push({
-                    type: 'workflow',
+                const newArt: ArtefactRef = {
+                    id: `art-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    type: safeType,
                     ref: refVal,
-                    name: 'Manual Reference'
-                });
-                input.value = '';
+                    name: nameVal || refVal,
+                    dimensionId: dim.id
+                };
+                this.currentRecord.artefacts.push(newArt);
                 this.saveToStorage();
                 this.render();
             }
+        });
+
+        // Delete artefact reference button handler
+        this.container.querySelectorAll('.pill-delete').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const artId = (e.currentTarget as HTMLElement).getAttribute('data-id');
+                if (artId) {
+                    this.currentRecord.artefacts = this.currentRecord.artefacts.filter(a => (a.id || a.ref) !== artId);
+                    this.saveToStorage();
+                    this.render();
+                }
+            });
         });
     }
 
@@ -469,11 +513,11 @@ export class AssessmentUI {
         
         this.container.innerHTML = `
             <div class="animate-fade">
-                <div class="results-header" style="text-align: center; margin-bottom: 3rem;">
+                <div class="results-header" style="text-align: center; margin-bottom: 2.5rem;">
                     <h2>Governance Profile: ${escapeHtml(this.currentRecord.organisation_name)}</h2>
                     <p class="muted">${this.currentRecord.team_mode ? 'Team Discussion Mode' : 'Individual Reflection Mode'} &middot; ${escapeHtml(this.currentRecord.date_created)}</p>
                     
-                    <div class="readiness-index-container" style="margin-top: 2.5rem; display: flex; flex-direction: column; align-items: center;">
+                    <div class="readiness-index-container" style="margin-top: 2rem; display: flex; flex-direction: column; align-items: center;">
                         <span class="subtitle">Governance Readiness Index</span>
                         <div class="readiness-gauge">
                             <div class="readiness-fill" style="width: ${profile.readinessIndex}%"></div>
@@ -481,6 +525,14 @@ export class AssessmentUI {
                         <div style="font-size: 3rem; font-weight: 800; color: var(--color-primary-default); margin-top: 0.5rem;">${profile.readinessIndex}%</div>
                         <p class="semibold" style="margin-top: 0.5rem; color: var(--color-text-secondary);">${escapeHtml(profile.overallMaturity)}</p>
                     </div>
+                </div>
+
+                <!-- Domain Governance Scope & Self-Assessment Notice -->
+                <div class="disclaimer-banner card" style="background: #f8fafc; border-left: 4px solid var(--color-primary-default, #111); padding: 1rem 1.25rem; margin-bottom: 2rem;">
+                    <strong style="color: var(--color-text-primary);">Self-Assessment Notice & Governance Scope:</strong>
+                    <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5;">
+                        This assessment reflects internal self-reported practices and structural alignment across 7 governance dimensions. It is an analytical diagnostic instrument for organizational learning and capability development, not external regulatory certification or statutory compliance verification.
+                    </p>
                 </div>
 
                 ${profile.comparison ? `
@@ -508,9 +560,13 @@ export class AssessmentUI {
                 </div>
                 ` : ''}
 
+                <!-- Strategic Recommended Actions (Gap-to-Action) -->
                 <div class="profile-grid">
                     <div class="card">
                         <h3>Strategic Recommended Actions (Gap-to-Action)</h3>
+                        <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: 1rem;">
+                            Immediate tactical remediation tasks corresponding to identified Level 0 and Level 1 governance gaps.
+                        </p>
                         <div class="gap-action-table" style="margin-top: 1rem;">
                             ${profile.gapActions.length > 0 ? profile.gapActions.map(a => `
                                 <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--border-color); align-items: flex-start;">
@@ -525,17 +581,115 @@ export class AssessmentUI {
                     </div>
                 </div>
 
+                <!-- Directions for Strategic Improvement across Seven Dimensions (B2.1 & B2.2) -->
                 <div class="profile-grid" style="margin-top: 2rem;">
                     <div class="card">
-                        <h3>Artefacts & Evidence</h3>
-                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
-                            ${this.currentRecord.artefacts.length > 0 ? this.currentRecord.artefacts.map(a => `
-                                <div class="pill" title="${escapeAttr(a.name)}">${escapeHtml(a.ref)}</div>
-                            `).join('') : '<p class="muted">No artefacts linked to this assessment.</p>'}
+                        <h3>Directions for Strategic Improvement</h3>
+                        <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: 1rem;">
+                            High-level institutional pathways derived from current scores across the 7 governance dimensions.
+                        </p>
+                        <ul class="improvement-list" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.75rem;">
+                            ${profile.improvementDirections.length > 0 ? profile.improvementDirections.map(d => `
+                                <li class="improvement-item" style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.875rem 1rem; background: #fafafa; border: 1px solid var(--border-color); border-radius: var(--radius);">
+                                    <span style="color: var(--color-primary-default); font-weight: 700; font-size: 1rem; line-height: 1.4;">→</span>
+                                    <span style="font-size: 0.9375rem; color: var(--text-primary); line-height: 1.4;">${escapeHtml(d)}</span>
+                                </li>
+                            `).join('') : '<li class="muted" style="padding: 0.75rem;">No improvement directions generated.</li>'}
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Key Reflection Prompts (B2.1) -->
+                <div class="profile-grid" style="margin-top: 2rem;">
+                    <div class="card">
+                        <h3>${this.currentRecord.team_mode ? 'Key Team Discussion Prompts' : 'Key Individual Reflection Prompts'}</h3>
+                        <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: 1rem;">
+                            ${this.currentRecord.team_mode 
+                                ? 'Facilitation questions designed for cross-functional governance review sessions and team deliberations.' 
+                                : 'Inquiry prompts for individual practitioners to scrutinise assumptions and identify operational blind spots.'}
+                        </p>
+                        <div class="reflection-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                            ${profile.reflectionPrompts.map((p, idx) => `
+                                <div class="reflection-card" style="padding: 1rem; border-left: 3px solid var(--color-primary-default); background: #fdfdfd; border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); border-radius: 0 var(--radius) var(--radius) 0;">
+                                    <span class="subtitle" style="display: block; margin-bottom: 0.25rem;">Prompt ${idx + 1}</span>
+                                    <p style="margin: 0; font-size: 0.9375rem; font-weight: 500; color: var(--text-primary); line-height: 1.4;">${escapeHtml(p)}</p>
+                                </div>
+                            `).join('')}
                         </div>
                     </div>
                 </div>
 
+                <!-- Evidence & Artefacts Portfolio (B2.4) -->
+                <div class="profile-grid" style="margin-top: 2rem;">
+                    <div class="card">
+                        <h3>Evidence & Artefacts Portfolio</h3>
+                        <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: 1rem;">
+                            Documented references, workflows, and decisions linked to support dimensional maturity claims.
+                        </p>
+                        
+                        ${(() => {
+                            const allArts = this.currentRecord.artefacts || [];
+                            if (allArts.length === 0) {
+                                return '<p class="muted" style="padding: 0.5rem 0;">No evidence references linked to this assessment.</p>';
+                            }
+
+                            const unlinked = allArts.filter(a => !a.dimensionId);
+                            const dimensionGroups = this.schema.dimensions.map(dim => {
+                                const arts = allArts.filter(a => a.dimensionId === dim.id);
+                                return { dim, arts };
+                            }).filter(g => g.arts.length > 0);
+
+                            let html = '<div style="display: flex; flex-direction: column; gap: 1rem;">';
+                            
+                            dimensionGroups.forEach(g => {
+                                html += `
+                                    <div class="evidence-group" style="border: 1px solid var(--border-color); border-radius: var(--radius); padding: 1rem; background: #fafafa;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                            <strong style="font-size: 0.9375rem; color: var(--text-primary);">${escapeHtml(g.dim.name)}</strong>
+                                            <span class="muted" style="font-size: 0.75rem;">${g.arts.length} reference${g.arts.length > 1 ? 's' : ''}</span>
+                                        </div>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                                            ${g.arts.map(a => `
+                                                <div class="pill-item" style="display: inline-flex; align-items: center; gap: 0.5rem; background: #ffffff; border: 1px solid var(--border-color); border-radius: 20px; padding: 4px 10px; font-size: 0.8125rem;">
+                                                    <span class="badge ${escapeAttr(a.type)}" style="font-size: 0.6875rem; padding: 2px 6px;">${escapeHtml(a.type)}</span>
+                                                    <strong style="color: var(--text-primary);">${escapeHtml(a.ref)}</strong>
+                                                    ${a.name && a.name !== a.ref ? `<span class="muted" style="font-size: 0.75rem;">— ${escapeHtml(a.name)}</span>` : ''}
+                                                    <button type="button" class="pill-delete" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Remove evidence ${escapeAttr(a.ref)}" style="background: none; border: none; cursor: pointer; color: #888; font-size: 1.1rem; line-height: 1; padding: 0 4px; margin-left: 2px;">&times;</button>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+
+                            if (unlinked.length > 0) {
+                                html += `
+                                    <div class="evidence-group" style="border: 1px dashed var(--border-color); border-radius: var(--radius); padding: 1rem; background: #fdfdfd;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                            <strong style="font-size: 0.9375rem; color: var(--text-secondary);">General / Institutional Evidence (Legacy or Unlinked)</strong>
+                                            <span class="muted" style="font-size: 0.75rem;">${unlinked.length} reference${unlinked.length > 1 ? 's' : ''}</span>
+                                        </div>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                                            ${unlinked.map(a => `
+                                                <div class="pill-item" style="display: inline-flex; align-items: center; gap: 0.5rem; background: #ffffff; border: 1px solid var(--border-color); border-radius: 20px; padding: 4px 10px; font-size: 0.8125rem;">
+                                                    <span class="badge ${escapeAttr(a.type)}" style="font-size: 0.6875rem; padding: 2px 6px;">${escapeHtml(a.type)}</span>
+                                                    <strong style="color: var(--text-primary);">${escapeHtml(a.ref)}</strong>
+                                                    ${a.name && a.name !== a.ref ? `<span class="muted" style="font-size: 0.75rem;">— ${escapeHtml(a.name)}</span>` : ''}
+                                                    <button type="button" class="pill-delete" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Remove evidence ${escapeAttr(a.ref)}" style="background: none; border: none; cursor: pointer; color: #888; font-size: 1.1rem; line-height: 1; padding: 0 4px; margin-left: 2px;">&times;</button>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+
+                            html += '</div>';
+                            return html;
+                        })()}
+                    </div>
+                </div>
+
+                <!-- Institutional Portfolio -->
                 <div class="profile-grid" style="margin-top: 2rem;">
                     <div class="card">
                         <h3>Institutional Portfolio</h3>
@@ -556,16 +710,17 @@ export class AssessmentUI {
                     </div>
                 </div>
 
-                <div class="results-grid">
+                <!-- Interpreted Patterns & Fragility Signals -->
+                <div class="results-grid" style="margin-top: 2rem;">
                     <div class="card">
                         <h3>Interpreted Patterns</h3>
                         <div class="pattern-list">
-                            ${profile.patterns.map(p => `
+                            ${profile.patterns.length > 0 ? profile.patterns.map(p => `
                                 <div class="pattern-item">
                                     <strong class="semibold">${escapeHtml(p.name)}</strong>
                                     <p>${escapeHtml(p.implication)}</p>
                                 </div>
-                            `).join('')}
+                            `).join('') : '<p class="muted">No divergent patterns detected.</p>'}
                         </div>
                     </div>
 
@@ -627,6 +782,19 @@ export class AssessmentUI {
             });
         }
 
+        // Delete artefact reference button handler on results screen
+        this.container.querySelectorAll('.pill-delete').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const artId = (e.currentTarget as HTMLElement).getAttribute('data-id');
+                if (artId) {
+                    this.currentRecord.artefacts = this.currentRecord.artefacts.filter(a => (a.id || a.ref) !== artId);
+                    this.saveToStorage();
+                    this.render();
+                }
+            });
+        });
+
         this.container.querySelector('#jsonBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             const data = exportToJSON(this.currentRecord);
@@ -639,7 +807,7 @@ export class AssessmentUI {
 
         this.container.querySelector('#mdBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
-            const data = exportToMarkdown(this.currentRecord, profile);
+            const data = exportToMarkdown(this.currentRecord, profile, this.schema);
             const safeFileName = (this.currentRecord.organisation_name || 'assessment')
                 .toLowerCase()
                 .replace(/[^a-z0-9_-]/gi, '-')

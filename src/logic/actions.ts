@@ -16,7 +16,7 @@ export const GAP_ACTION_MAP: GapAction[] = [
     
     // Risk Management
     { dimensionId: 'risk_management', level: 0, action: 'Conduct a high-level inventory of all active AI tools and their associated impact levels.', priority: 'Urgent' },
-    { dimensionId: 'risk_management', level: 1, action: 'Implement a structured Risk Scoring system for and perform periodic failure mode audits.', priority: 'Strategic' },
+    { dimensionId: 'risk_management', level: 1, action: 'Implement a structured Risk Scoring system and perform periodic failure mode audits.', priority: 'Strategic' },
     
     // Accountability
     { dimensionId: 'accountability', level: 0, action: 'Formally appoint an AI Governance Lead and define cross-functional accountability roles.', priority: 'Urgent' },
