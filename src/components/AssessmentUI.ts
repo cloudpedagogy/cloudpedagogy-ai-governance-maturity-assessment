@@ -137,6 +137,290 @@ export class AssessmentUI {
         });
     }
 
+    private async showEditArtefactModal(art: ArtefactRef): Promise<ArtefactRef | null> {
+        return new Promise((resolve) => {
+            const prevFocused = document.activeElement as HTMLElement | null;
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.setAttribute('role', 'dialog');
+            overlay.setAttribute('aria-modal', 'true');
+            overlay.setAttribute('aria-labelledby', 'editArtTitle');
+
+            const content = document.createElement('div');
+            content.className = 'modal-content';
+            content.style.maxWidth = '460px';
+
+            content.innerHTML = `
+                <h3 id="editArtTitle" style="margin-bottom: 1rem;">Edit Evidence Reference</h3>
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div>
+                        <label for="editArtType" style="display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.25rem;">Type</label>
+                        <select id="editArtType" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius); background: var(--bg-color); font-size: 0.875rem;">
+                            <option value="workflow" ${art.type === 'workflow' ? 'selected' : ''}>Workflow</option>
+                            <option value="decision" ${art.type === 'decision' ? 'selected' : ''}>Decision</option>
+                            <option value="document" ${art.type === 'document' ? 'selected' : ''}>Document</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="editArtRef" style="display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.25rem;">Reference ID</label>
+                        <input type="text" id="editArtRef" value="${escapeAttr(art.ref)}" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius); font-size: 0.875rem;" required>
+                    </div>
+                    <div>
+                        <label for="editArtName" style="display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.25rem;">Title / Description</label>
+                        <input type="text" id="editArtName" value="${escapeAttr(art.name || '')}" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius); font-size: 0.875rem;">
+                    </div>
+                </div>
+                <div class="modal-actions" style="margin-top: 1.5rem;">
+                    <button type="button" class="secondary" id="cancelEditArt">Cancel</button>
+                    <button type="button" class="primary" id="saveEditArt">Save Changes</button>
+                </div>
+            `;
+
+            overlay.appendChild(content);
+            document.body.appendChild(overlay);
+
+            const refInput = content.querySelector('#editArtRef') as HTMLInputElement;
+            refInput?.focus();
+
+            const cleanup = (result: ArtefactRef | null) => {
+                document.removeEventListener('keydown', keyHandler);
+                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                if (prevFocused && typeof prevFocused.focus === 'function') prevFocused.focus();
+                resolve(result);
+            };
+
+            const keyHandler = (e: KeyboardEvent) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cleanup(null);
+                }
+            };
+            document.addEventListener('keydown', keyHandler);
+
+            content.querySelector('#cancelEditArt')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                cleanup(null);
+            });
+
+            content.querySelector('#saveEditArt')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const newRef = (content.querySelector('#editArtRef') as HTMLInputElement).value.trim();
+                const newName = (content.querySelector('#editArtName') as HTMLInputElement).value.trim();
+                const newType = (content.querySelector('#editArtType') as HTMLSelectElement).value as 'workflow' | 'decision' | 'document';
+
+                if (!newRef) {
+                    refInput.focus();
+                    return;
+                }
+
+                cleanup({
+                    ...art,
+                    type: newType,
+                    ref: newRef,
+                    name: newName || newRef
+                });
+            });
+        });
+    }
+
+    private async showHistoryModal(): Promise<void> {
+        const history = this.getHistory();
+        if (history.length === 0) {
+            await this.showModal('Assessment History', 'No past assessment snapshots recorded in local storage.');
+            return;
+        }
+
+        return new Promise((resolve) => {
+            const prevFocused = document.activeElement as HTMLElement | null;
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.setAttribute('role', 'dialog');
+            overlay.setAttribute('aria-modal', 'true');
+            overlay.setAttribute('aria-labelledby', 'historyModalTitle');
+
+            const content = document.createElement('div');
+            content.className = 'modal-content history-modal-content';
+            content.style.maxWidth = '680px';
+            content.style.maxHeight = '80vh';
+            content.style.overflowY = 'auto';
+
+            const historyListHtml = history.map((rec, idx) => {
+                const profile = calculateGovernanceProfile(this.schema, rec);
+                const scoredCount = Object.keys(rec.scores).length;
+                return `
+                <div class="history-item card" style="padding: 1rem; margin-bottom: 0.75rem; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                    <div>
+                        <strong style="font-size: 1rem; color: var(--text-primary);">${escapeHtml(rec.organisation_name || 'Unnamed Organisation')}</strong>
+                        <div class="muted" style="font-size: 0.8125rem; margin-top: 2px;">
+                            <span>${escapeHtml(rec.date_created)}</span> &middot; 
+                            <span>${rec.team_mode ? 'Team Mode' : 'Individual Mode'}</span> &middot;
+                            <span>${scoredCount}/7 Dimensions Scored</span>
+                        </div>
+                        <div style="margin-top: 4px;">
+                            <span class="badge strategic" style="font-size: 0.75rem;">Readiness: ${profile.readinessIndex}%</span>
+                            <span class="muted" style="font-size: 0.75rem; margin-left: 6px;">${escapeHtml(profile.overallMaturity)}</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="primary restore-hist-btn" data-index="${idx}" style="padding: 4px 10px; font-size: 0.8125rem;">Restore</button>
+                        <button type="button" class="secondary compare-hist-btn" data-index="${idx}" style="padding: 4px 10px; font-size: 0.8125rem;">Compare</button>
+                        <button type="button" class="secondary delete-hist-btn" data-index="${idx}" style="padding: 4px 10px; font-size: 0.8125rem; color: #dc2626;" aria-label="Delete snapshot">&times;</button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            content.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 id="historyModalTitle" style="margin: 0;">Assessment History Snapshots</h3>
+                    <span class="muted" style="font-size: 0.8125rem;">Saved in LocalStorage (Max 5)</span>
+                </div>
+                <p class="muted" style="font-size: 0.875rem; margin-bottom: 1rem;">
+                    Restore a previous snapshot as your active assessment, or compare against your active results.
+                </p>
+                <div class="history-list">
+                    ${historyListHtml}
+                </div>
+                <div class="modal-actions" style="margin-top: 1.5rem; justify-content: flex-end;">
+                    <button type="button" class="secondary" id="closeHistoryModal">Close</button>
+                </div>
+            `;
+
+            overlay.appendChild(content);
+            document.body.appendChild(overlay);
+
+            const closeBtn = content.querySelector('#closeHistoryModal') as HTMLButtonElement;
+            closeBtn?.focus();
+
+            const cleanup = () => {
+                document.removeEventListener('keydown', keyHandler);
+                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                if (prevFocused && typeof prevFocused.focus === 'function') prevFocused.focus();
+                resolve();
+            };
+
+            const keyHandler = (e: KeyboardEvent) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cleanup();
+                }
+            };
+            document.addEventListener('keydown', keyHandler);
+
+            closeBtn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                cleanup();
+            });
+
+            // Restore button handler
+            content.querySelectorAll('.restore-hist-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt((e.currentTarget as HTMLElement).getAttribute('data-index') || '0', 10);
+                    const selectedRec = history[idx];
+                    if (!selectedRec) return;
+
+                    cleanup();
+
+                    const confirmed = await this.showModal(
+                        'Restore Snapshot',
+                        `Restoring "${selectedRec.organisation_name || 'Assessment'}" will replace your current active assessment data. Continue?`,
+                        'Restore Snapshot',
+                        true
+                    );
+                    if (confirmed) {
+                        this.currentRecord = selectedRec;
+                        this.saveToStorage();
+                        const firstUnanswered = this.schema.dimensions.findIndex(d => this.currentRecord.scores[d.id] === undefined);
+                        if (firstUnanswered !== -1) {
+                            this.currentDimensionIndex = firstUnanswered;
+                        } else {
+                            this.currentDimensionIndex = this.schema.dimensions.length;
+                        }
+                        this.render();
+                    }
+                });
+            });
+
+            // Compare button handler
+            content.querySelectorAll('.compare-hist-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt((e.currentTarget as HTMLElement).getAttribute('data-index') || '0', 10);
+                    const selectedRec = history[idx];
+                    cleanup();
+                    if (selectedRec) {
+                        this.renderResults(selectedRec);
+                    }
+                });
+            });
+
+            // Delete button handler
+            content.querySelectorAll('.delete-hist-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt((e.currentTarget as HTMLElement).getAttribute('data-index') || '0', 10);
+                    const updatedHistory = history.filter((_, i) => i !== idx);
+                    saveHistoryToStorage(updatedHistory, window.localStorage);
+                    cleanup();
+                    this.showHistoryModal();
+                });
+            });
+        });
+    }
+
+    private handleImportFile(file: File) {
+        const reader = new FileReader();
+        reader.onload = async (re) => {
+            const rawContent = re.target?.result as string;
+            let parsed: unknown;
+            try {
+                parsed = JSON.parse(rawContent);
+            } catch {
+                await this.showModal('Invalid JSON File', 'The uploaded file could not be parsed as valid JSON.');
+                return;
+            }
+
+            const validation = validateAssessmentRecord(parsed, this.schema.dimensions.map(d => d.id));
+            if (!validation.isValid || !validation.record) {
+                const message = 'The assessment file contains invalid data:\n\n• ' + validation.errors.join('\n• ');
+                await this.showModal('Import Validation Failed', message);
+                return;
+            }
+
+            // Confirm before replacing active assessment if active assessment has progress
+            const hasActiveWork = Boolean(
+                this.currentRecord.organisation_name || 
+                Object.keys(this.currentRecord.scores).length > 0
+            );
+
+            if (hasActiveWork) {
+                const confirmed = await this.showModal(
+                    'Replace Current Assessment',
+                    'Importing this assessment will replace your active assessment data. Are you sure you want to proceed?',
+                    'Import & Replace',
+                    true
+                );
+                if (!confirmed) return;
+                // Preserve previous active work in history buffer so it is not lost
+                this.saveToHistory();
+            }
+
+            this.currentRecord = validation.record;
+            this.saveToStorage();
+
+            const scoredCount = Object.keys(this.currentRecord.scores).length;
+            if (scoredCount >= this.schema.dimensions.length) {
+                this.currentDimensionIndex = this.schema.dimensions.length; // Navigate to Results
+            } else {
+                const firstIncomplete = this.schema.dimensions.findIndex(d => this.currentRecord.scores[d.id] === undefined);
+                this.currentDimensionIndex = firstIncomplete !== -1 ? firstIncomplete : 0;
+            }
+            this.render();
+        };
+        reader.readAsText(file);
+    }
+
     render() {
         if (this.isRendering) return;
         this.isRendering = true;
@@ -184,11 +468,14 @@ export class AssessmentUI {
 
                 ${hasSaved ? `<p class="muted" style="text-align: center;">You have a saved assessment. Beginning will resume your progress.</p>` : ''}
                 
-                <div class="nav-buttons" style="justify-content: center;">
+                <div class="nav-buttons" style="justify-content: center; flex-wrap: wrap; gap: 0.75rem;">
                     <button type="button" class="primary" id="startBtn">${hasSaved ? 'Continue Assessment' : 'Begin Assessment'}</button>
                     <button type="button" class="secondary" id="demoBtn">Try Healthcare Demo</button>
+                    <button type="button" class="secondary" id="importBtn">Import Assessment JSON</button>
+                    <button type="button" class="secondary" id="historyBtn">History Snapshots (${this.getHistory().length})</button>
                     ${hasSaved ? `<button type="button" class="secondary" id="clearAll" style="color: var(--color-text-secondary);">Clear Progress</button>` : ''}
                 </div>
+                <input type="file" id="importUpload" style="display: none;" accept=".json">
             </div>
             
             <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.8125rem;">
@@ -238,6 +525,25 @@ export class AssessmentUI {
                 this.currentDimensionIndex = 0;
             }
             this.render();
+        });
+
+        const importInput = this.container.querySelector('#importUpload') as HTMLInputElement;
+        this.container.querySelector('#importBtn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            importInput?.click();
+        });
+
+        importInput?.addEventListener('change', (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (file) {
+                importInput.value = '';
+                this.handleImportFile(file);
+            }
+        });
+
+        this.container.querySelector('#historyBtn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.showHistoryModal();
         });
 
         this.container.querySelector('#clearAll')?.addEventListener('click', async (e) => {
@@ -297,6 +603,30 @@ export class AssessmentUI {
         const currentNotes = this.currentRecord.notes[dim.id] || '';
 
         this.container.innerHTML = `
+            <!-- Dimension Stepper Navigation (B3.2) -->
+            <nav class="stepper-nav" aria-label="Governance dimensions stepper" style="margin-bottom: 1.5rem;">
+                <div class="stepper-container" role="tablist">
+                    ${this.schema.dimensions.map((d, idx) => {
+                        const isCurrent = idx === this.currentDimensionIndex;
+                        const isAnswered = this.currentRecord.scores[d.id] !== undefined;
+                        const statusText = isAnswered ? `Answered: Level ${this.currentRecord.scores[d.id]}` : 'Unanswered';
+                        return `
+                            <button type="button" 
+                                role="tab"
+                                class="stepper-step ${isCurrent ? 'active' : ''} ${isAnswered ? 'answered' : 'unanswered'}" 
+                                data-index="${idx}"
+                                aria-selected="${isCurrent}"
+                                aria-label="${escapeAttr(`Dimension ${idx + 1}: ${d.name} (${statusText})`)}"
+                                title="${escapeAttr(`${d.name} (${statusText})`)}"
+                            >
+                                <span class="step-badge" aria-hidden="true">${isAnswered ? '✓' : idx + 1}</span>
+                                <span class="step-title">${escapeHtml(d.name)}</span>
+                            </button>
+                        `;
+                    }).join('')}
+                </div>
+            </nav>
+
             <div class="progress-bar">
                 <div class="progress-fill" style="width: ${progress}%"></div>
             </div>
@@ -372,7 +702,8 @@ export class AssessmentUI {
                                     <span class="badge ${escapeAttr(a.type)}" style="font-size: 0.6875rem; padding: 2px 6px;">${escapeHtml(a.type)}</span>
                                     <strong style="color: var(--text-primary);">${escapeHtml(a.ref)}</strong>
                                     ${a.name && a.name !== a.ref ? `<span class="muted" style="font-size: 0.75rem;">— ${escapeHtml(a.name)}</span>` : ''}
-                                    <button type="button" class="pill-delete" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Remove evidence ${escapeAttr(a.ref)}" style="background: none; border: none; cursor: pointer; color: #888; font-size: 1.1rem; line-height: 1; padding: 0 4px; margin-left: 2px;">&times;</button>
+                                    <button type="button" class="pill-edit" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Edit evidence ${escapeAttr(a.ref)}" title="Edit reference" style="background: none; border: none; cursor: pointer; color: #555; font-size: 0.8125rem; line-height: 1; padding: 0 4px; margin-left: 2px;">✎</button>
+                                    <button type="button" class="pill-delete" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Remove evidence ${escapeAttr(a.ref)}" title="Remove reference" style="background: none; border: none; cursor: pointer; color: #888; font-size: 1.1rem; line-height: 1; padding: 0 4px; margin-left: 2px;">&times;</button>
                                 </div>
                             `).join('');
                         })()}
@@ -405,6 +736,23 @@ export class AssessmentUI {
                 this.saveToStorage();
             });
         }
+
+        // Stepper jump handler (B3.2): auto-saves current notes & score before switching dimension
+        this.container.querySelectorAll('.stepper-step').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const targetIdx = parseInt((e.currentTarget as HTMLElement).getAttribute('data-index') || '0', 10);
+                if (targetIdx === this.currentDimensionIndex) return;
+
+                const currentNotesArea = this.container.querySelector('#notes') as HTMLTextAreaElement;
+                if (currentNotesArea) {
+                    this.currentRecord.notes[dim.id] = currentNotesArea.value;
+                }
+                this.saveToStorage();
+                this.currentDimensionIndex = targetIdx;
+                this.render();
+            });
+        });
 
         // Selection Handler via Radio Changes (supports mouse click, keyboard arrow navigation, and tab selection)
         this.container.querySelectorAll('input[name="maturity-level"]').forEach(input => {
@@ -487,6 +835,26 @@ export class AssessmentUI {
             }
         });
 
+        // Edit artefact reference button handler (B3.3)
+        this.container.querySelectorAll('.pill-edit').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const artId = (e.currentTarget as HTMLElement).getAttribute('data-id');
+                const art = this.currentRecord.artefacts.find(a => (a.id || a.ref) === artId);
+                if (art) {
+                    const updated = await this.showEditArtefactModal(art);
+                    if (updated) {
+                        const idx = this.currentRecord.artefacts.findIndex(a => (a.id || a.ref) === artId);
+                        if (idx !== -1) {
+                            this.currentRecord.artefacts[idx] = updated;
+                            this.saveToStorage();
+                            this.render();
+                        }
+                    }
+                }
+            });
+        });
+
         // Delete artefact reference button handler
         this.container.querySelectorAll('.pill-delete').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -510,6 +878,9 @@ export class AssessmentUI {
         }
         const latestHistory = previousRecord || autoHistory;
         const profile = calculateGovernanceProfile(this.schema, this.currentRecord, latestHistory);
+        const scoredCount = Object.keys(this.currentRecord.scores).length;
+        const totalDims = this.schema.dimensions.length;
+        const isPartial = scoredCount < totalDims;
         
         this.container.innerHTML = `
             <div class="animate-fade">
@@ -534,6 +905,23 @@ export class AssessmentUI {
                         This assessment reflects internal self-reported practices and structural alignment across 7 governance dimensions. It is an analytical diagnostic instrument for organizational learning and capability development, not external regulatory certification or statutory compliance verification.
                     </p>
                 </div>
+
+                <!-- Partial Assessment Banner (B3.6) -->
+                ${isPartial ? `
+                <div class="card partial-status-banner" style="background: #fffbeb; border: 1px solid #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem 1.25rem; margin-bottom: 2rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                        <div>
+                            <strong style="color: #92400e; font-size: 0.9375rem;">Partial Assessment Status:</strong>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: #78350f; line-height: 1.4;">
+                                <strong>${scoredCount} of ${totalDims} dimensions</strong> have been scored. In accordance with governance integrity, unanswered dimensions are factored into the readiness index at Level 0 (Unmanaged) rather than omitted, preventing false confidence.
+                            </p>
+                        </div>
+                        <button type="button" class="secondary revisit-first-unanswered-btn" style="font-size: 0.8125rem; padding: 6px 12px; background: #ffffff; border-color: #d97706; color: #92400e;">
+                            Complete Remaining Dimensions &rarr;
+                        </button>
+                    </div>
+                </div>
+                ` : ''}
 
                 ${profile.comparison ? `
                 <div class="card" style="margin-bottom: 2rem; border: 1px solid var(--color-primary-light); background: #f0f9ff;">
@@ -560,8 +948,87 @@ export class AssessmentUI {
                 </div>
                 ` : ''}
 
-                <!-- Strategic Recommended Actions (Gap-to-Action) -->
+                <!-- Detailed Dimension Audit & Evidence Review (B3.3) -->
                 <div class="profile-grid">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+                            <h3 style="margin: 0;">Detailed Dimension Audit & Evidence Review</h3>
+                            <span class="muted" style="font-size: 0.8125rem;">Full Basis of Maturity Assessment</span>
+                        </div>
+                        <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: 1.5rem;">
+                            Inspect scores, qualitative rationale notes, and linked evidence records for each of the 7 governance dimensions. Use "Revisit" to update any dimension.
+                        </p>
+                        
+                        <div class="dimension-breakdown-table-wrapper" style="overflow-x: auto;">
+                            <table class="dimension-breakdown-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid var(--border-color); background: #f9fafb;">
+                                        <th style="padding: 0.75rem 1rem; font-weight: 600; color: var(--text-secondary);">Dimension</th>
+                                        <th style="padding: 0.75rem 1rem; font-weight: 600; color: var(--text-secondary); width: 140px;">Score & Level</th>
+                                        <th style="padding: 0.75rem 1rem; font-weight: 600; color: var(--text-secondary);">Qualitative Notes</th>
+                                        <th style="padding: 0.75rem 1rem; font-weight: 600; color: var(--text-secondary); width: 220px;">Linked Evidence</th>
+                                        <th style="padding: 0.75rem 1rem; font-weight: 600; color: var(--text-secondary); text-align: right; width: 100px;" class="hide-in-print">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${this.schema.dimensions.map((dim, idx) => {
+                                        const score = this.currentRecord.scores[dim.id];
+                                        const isAnswered = score !== undefined;
+                                        const levelObj = isAnswered ? this.schema.levels.find(l => l.id === score) : null;
+                                        const levelName = levelObj ? levelObj.name : 'Unanswered';
+                                        const noteText = this.currentRecord.notes[dim.id] || '';
+                                        const dimArtefacts = (this.currentRecord.artefacts || []).filter(a => a.dimensionId === dim.id || (!a.dimensionId && idx === 0));
+
+                                        return `
+                                        <tr style="border-bottom: 1px solid var(--border-color); vertical-align: top;">
+                                            <td style="padding: 1rem;">
+                                                <strong style="color: var(--text-primary); display: block;">${escapeHtml(dim.name)}</strong>
+                                                <span class="muted" style="font-size: 0.75rem;">Dimension ${idx + 1}</span>
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                ${isAnswered ? `
+                                                    <span class="badge ${score >= 2 ? 'strategic' : score === 1 ? 'decision' : 'urgent'}" style="font-size: 0.75rem; padding: 3px 8px;">
+                                                        Level ${score}: ${escapeHtml(levelName)}
+                                                    </span>
+                                                ` : `
+                                                    <span class="badge" style="background: #f3f4f6; color: #9ca3af; border-color: #d1d5db; font-size: 0.75rem; padding: 3px 8px;">
+                                                        Unanswered
+                                                    </span>
+                                                `}
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                ${noteText ? `<p style="margin: 0; font-size: 0.8125rem; color: var(--text-primary); line-height: 1.4;">${escapeHtml(noteText)}</p>` : `<span class="muted" style="font-size: 0.8125rem; font-style: italic;">No reflective notes recorded</span>`}
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                ${dimArtefacts.length > 0 ? `
+                                                    <div style="display: flex; flex-direction: column; gap: 0.375rem;">
+                                                        ${dimArtefacts.map(a => `
+                                                            <div class="pill-item" style="display: inline-flex; align-items: center; gap: 0.375rem; background: #ffffff; border: 1px solid var(--border-color); border-radius: 12px; padding: 2px 8px; font-size: 0.75rem;">
+                                                                <span class="badge ${escapeAttr(a.type)}" style="font-size: 0.625rem; padding: 1px 4px;">${escapeHtml(a.type)}</span>
+                                                                <strong style="color: var(--text-primary);">${escapeHtml(a.ref)}</strong>
+                                                                <button type="button" class="pill-edit hide-in-print" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Edit evidence ${escapeAttr(a.ref)}" title="Edit reference" style="background: none; border: none; cursor: pointer; color: #555; font-size: 0.75rem; line-height: 1; padding: 0 2px; margin-left: 2px;">✎</button>
+                                                                <button type="button" class="pill-delete hide-in-print" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Remove evidence ${escapeAttr(a.ref)}" style="background: none; border: none; cursor: pointer; color: #888; font-size: 0.875rem; line-height: 1; padding: 0 2px;">&times;</button>
+                                                            </div>
+                                                        `).join('')}
+                                                    </div>
+                                                ` : `<span class="muted" style="font-size: 0.8125rem; font-style: italic;">No evidence linked</span>`}
+                                            </td>
+                                            <td style="padding: 1rem; text-align: right;" class="hide-in-print">
+                                                <button type="button" class="secondary revisit-dim-btn" data-index="${idx}" style="padding: 4px 10px; font-size: 0.75rem; white-space: nowrap;">
+                                                    Revisit
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategic Recommended Actions (Gap-to-Action) -->
+                <div class="profile-grid" style="margin-top: 2rem;">
                     <div class="card">
                         <h3>Strategic Recommended Actions (Gap-to-Action)</h3>
                         <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: 1rem;">
@@ -619,7 +1086,7 @@ export class AssessmentUI {
                     </div>
                 </div>
 
-                <!-- Evidence & Artefacts Portfolio (B2.4) -->
+                <!-- Evidence & Artefacts Portfolio (B2.4 & B3.3) -->
                 <div class="profile-grid" style="margin-top: 2rem;">
                     <div class="card">
                         <h3>Evidence & Artefacts Portfolio</h3>
@@ -654,7 +1121,8 @@ export class AssessmentUI {
                                                     <span class="badge ${escapeAttr(a.type)}" style="font-size: 0.6875rem; padding: 2px 6px;">${escapeHtml(a.type)}</span>
                                                     <strong style="color: var(--text-primary);">${escapeHtml(a.ref)}</strong>
                                                     ${a.name && a.name !== a.ref ? `<span class="muted" style="font-size: 0.75rem;">— ${escapeHtml(a.name)}</span>` : ''}
-                                                    <button type="button" class="pill-delete" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Remove evidence ${escapeAttr(a.ref)}" style="background: none; border: none; cursor: pointer; color: #888; font-size: 1.1rem; line-height: 1; padding: 0 4px; margin-left: 2px;">&times;</button>
+                                                    <button type="button" class="pill-edit hide-in-print" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Edit evidence ${escapeAttr(a.ref)}" title="Edit reference" style="background: none; border: none; cursor: pointer; color: #555; font-size: 0.8125rem; line-height: 1; padding: 0 4px; margin-left: 2px;">✎</button>
+                                                    <button type="button" class="pill-delete hide-in-print" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Remove evidence ${escapeAttr(a.ref)}" title="Remove reference" style="background: none; border: none; cursor: pointer; color: #888; font-size: 1.1rem; line-height: 1; padding: 0 4px; margin-left: 2px;">&times;</button>
                                                 </div>
                                             `).join('')}
                                         </div>
@@ -675,7 +1143,8 @@ export class AssessmentUI {
                                                     <span class="badge ${escapeAttr(a.type)}" style="font-size: 0.6875rem; padding: 2px 6px;">${escapeHtml(a.type)}</span>
                                                     <strong style="color: var(--text-primary);">${escapeHtml(a.ref)}</strong>
                                                     ${a.name && a.name !== a.ref ? `<span class="muted" style="font-size: 0.75rem;">— ${escapeHtml(a.name)}</span>` : ''}
-                                                    <button type="button" class="pill-delete" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Remove evidence ${escapeAttr(a.ref)}" style="background: none; border: none; cursor: pointer; color: #888; font-size: 1.1rem; line-height: 1; padding: 0 4px; margin-left: 2px;">&times;</button>
+                                                    <button type="button" class="pill-edit hide-in-print" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Edit evidence ${escapeAttr(a.ref)}" title="Edit reference" style="background: none; border: none; cursor: pointer; color: #555; font-size: 0.8125rem; line-height: 1; padding: 0 4px; margin-left: 2px;">✎</button>
+                                                    <button type="button" class="pill-delete hide-in-print" data-id="${escapeAttr(a.id || a.ref)}" aria-label="Remove evidence ${escapeAttr(a.ref)}" title="Remove reference" style="background: none; border: none; cursor: pointer; color: #888; font-size: 1.1rem; line-height: 1; padding: 0 4px; margin-left: 2px;">&times;</button>
                                                 </div>
                                             `).join('')}
                                         </div>
@@ -732,13 +1201,16 @@ export class AssessmentUI {
                     </div>
                 </div>
 
-                <div class="nav-buttons" style="margin-top: 3rem; justify-content: center;">
+                <div class="nav-buttons hide-in-print" style="margin-top: 3rem; justify-content: center; flex-wrap: wrap; gap: 0.75rem;">
                     <button type="button" class="secondary" id="jsonBtn">Export JSON</button>
                     <button type="button" class="secondary" id="mdBtn">Export Markdown</button>
                     <button type="button" class="primary" id="printBtn">Print Profile</button>
+                    <button type="button" class="secondary" id="importResultsBtn">Import JSON</button>
+                    <button type="button" class="secondary" id="historyResultsBtn">History Snapshots (${this.getHistory().length})</button>
                     <button type="button" class="secondary" id="compareBtn">Upload & Compare</button>
                     <button type="button" class="secondary" id="homeBtn">New Assessment</button>
                 </div>
+                <input type="file" id="importResultsUpload" style="display: none;" accept=".json">
                 <input type="file" id="compareUpload" style="display: none;" accept=".json">
 
                 <!-- Lightweight capability and governance layer -->
@@ -782,6 +1254,46 @@ export class AssessmentUI {
             });
         }
 
+        // Revisit dimension buttons in detailed table (B3.3)
+        this.container.querySelectorAll('.revisit-dim-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const targetIdx = parseInt((e.currentTarget as HTMLElement).getAttribute('data-index') || '0', 10);
+                this.currentDimensionIndex = targetIdx;
+                this.render();
+            });
+        });
+
+        // Revisit first unanswered dimension button from partial status banner
+        this.container.querySelector('.revisit-first-unanswered-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const firstUnanswered = this.schema.dimensions.findIndex(d => this.currentRecord.scores[d.id] === undefined);
+            if (firstUnanswered !== -1) {
+                this.currentDimensionIndex = firstUnanswered;
+                this.render();
+            }
+        });
+
+        // Edit artefact reference button handler on results screen (B3.3)
+        this.container.querySelectorAll('.pill-edit').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const artId = (e.currentTarget as HTMLElement).getAttribute('data-id');
+                const art = this.currentRecord.artefacts.find(a => (a.id || a.ref) === artId);
+                if (art) {
+                    const updated = await this.showEditArtefactModal(art);
+                    if (updated) {
+                        const idx = this.currentRecord.artefacts.findIndex(a => (a.id || a.ref) === artId);
+                        if (idx !== -1) {
+                            this.currentRecord.artefacts[idx] = updated;
+                            this.saveToStorage();
+                            this.render();
+                        }
+                    }
+                }
+            });
+        });
+
         // Delete artefact reference button handler on results screen
         this.container.querySelectorAll('.pill-delete').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -818,6 +1330,27 @@ export class AssessmentUI {
         this.container.querySelector('#printBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             window.print();
+        });
+
+        // Import Assessment JSON button from Results screen
+        const importResultsInput = this.container.querySelector('#importResultsUpload') as HTMLInputElement;
+        this.container.querySelector('#importResultsBtn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            importResultsInput?.click();
+        });
+
+        importResultsInput?.addEventListener('change', (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (file) {
+                importResultsInput.value = '';
+                this.handleImportFile(file);
+            }
+        });
+
+        // History Snapshots button from Results screen
+        this.container.querySelector('#historyResultsBtn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.showHistoryModal();
         });
 
         const compareInput = this.container.querySelector('#compareUpload') as HTMLInputElement;

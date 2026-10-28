@@ -1,156 +1,162 @@
 # CloudPedagogy AI Governance Maturity Assessment
 
-An institutional self-assessment instrument for evaluating organisational readiness in governing AI-supported systems.
+An independent, local-first open-source self-assessment instrument for evaluating organisational readiness in governing AI-supported systems.
+
+Part of the **CloudPedagogy AI Management Studio** open-source toolkit.
+
+---
 
 ## 🔗 Role in the CloudPedagogy Ecosystem
 
 **Phase:** Phase 2 — Governance Pipeline
 
 **Role:**
-Evaluates institutional governance maturity and readiness by diagnosing gaps in strategic, ethical, and operational practice.
+Evaluates institutional governance maturity and readiness by diagnosing gaps across strategic, ethical, and operational practices.
 
 **Upstream Inputs:**
 Audit outcomes from the **Risk Scanner** and aggregate metadata from the **Human-AI Decision Record**.
 
 **Downstream Outputs:**
-Generates strategic Gap-to-Action mapping used for institutional policymaking and executive governance review.
+Generates strategic Gap-to-Action mapping, dimensional audit records, and governance profiles used for institutional policymaking and executive governance review.
 
-**Does NOT:**
-- Perform granular risk audits of individual workflows.
-- Record live individual decision outcomes in production.
+**Scope Boundaries (Does NOT):**
+- Does not perform automated static code or runtime risk audits of individual models.
+- Does not record live individual decision outcomes in production.
+- Does not replace external statutory audits, regulatory certifications, or legal compliance verification.
 
+---
 
 ## Overview
 
-This tool is a key component of the **Human–AI Governance Engineering** suite within the CloudPedagogy ecosystem. Built on **Capability-Driven Development (CDD)** principles, it prioritizes the interpretation of governance maturity over simple numerical scoring.
+Built on **Capability-Driven Development (CDD)** principles, this tool prioritises qualitative governance reflection and structural maturity diagnosis over simplistic numerical scoring.
 
-### Strategic Context
-- **Governance-First**: Designed to reveal organisational blind spots and structural fragility.
-- **Insight-Driven**: Generates interpreted patterns and fragility signals, not just a score.
-- **Strategic Evaluation**: Includes a headline **Governance Readiness Index** and automated **Gap-to-Action** mapping.
-- **Trend Tracking**: Compares current assessment against historical snapshots or imported data.
-- **Privacy-Preserving**: Runs entirely in the browser; all data stays in `localStorage`.
-
----
-
-## 🏛️ Strategic Evaluation System
-
-This tool has been strengthened to support institutional-level governance evaluation:
-
-### 1. Governance Readiness Index
-A headline metric (0–100%) providing a high-level view of governance maturity across all 7 dimensions. This score is recalculated independently of any design-time metrics to ensure audit integrity.
-
-### 2. Gap-to-Action Mapping
-Automated, rule-based recommendations for any dimensions scoring at Maturity Level 0 (Emerging) or 1 (Developing). These actions are designed to move the institution toward systematic governance.
-
-### 3. Artefact Linking
-Support for lightweight evidence linking, allowing maturity claims to be tied to specific human–AI workflows or decision records (referenced by ID).
-
-### 4. Trend Tracking & Comparison
-Supports side-by-side comparison with historical snapshots:
-- **LocalStorage History**: Automatically preserves the last 5 assessment reflections.
-- **Side-by-Side Upload**: Import a previous JSON profile to visualize governance progress or drift over time.
-
+### Key Capabilities
+- **Local-First & Privacy-Preserving**: Runs 100% in the browser. Zero telemetry, zero external APIs, zero backend dependencies. All data resides in browser `localStorage`.
+- **Interactive 7-Dimension Stepper**: Fluid navigation between all 7 governance dimensions with automatic draft saving and progress indication (completed vs incomplete).
+- **Comprehensive Results Breakdown**: Full audit table inspecting every dimension score, descriptive maturity level, qualitative reflection notes, and linked evidence references, with one-click direct "Revisit" jumping.
+- **Evidence Management**: Link, edit, and curate evidence references (workflows, decision records, policy documents) supporting maturity claims.
+- **Import, Restore & History Snapshots**: Robust JSON import validation, 5-slot historical circular buffer with side-by-side trend comparisons and restoration safeguards.
+- **Executive Reporting & Print-to-PDF**: Standardised Markdown report export and high-contrast `@media print` layout optimised for browser print-to-PDF generation.
 
 ---
 
-## 🌐 Live Application (Local-First, Privacy-Preserving)
+## 🏛️ Governance Methodology & Maturity Scale
 
-👉 http://cloudpedagogy-ai-governance-maturity-assessment.s3-website.eu-west-2.amazonaws.com/
+The assessment evaluates organisations across **seven core dimensions** on a **0 to 3 maturity scale**:
 
-This is a fully functional, browser-based application designed for real-world use.
+### Four-Level Maturity Scale (0–3)
+- **Level 0 — Emerging (0 points)**: Governance is ad-hoc, informal, and reactive. No structured documentation or systematic oversight.
+- **Level 1 — Developing (1 point)**: Basic structures exist but are inconsistent, siloed, or dependent on individual competence rather than formalised systems.
+- **Level 2 — Established (2 points)**: Formally defined processes, explicit roles, tailored policies, and regular review cadences are in place.
+- **Level 3 — Advanced (3 points)**: Governance is deeply integrated into operational lifecycles, proactive, dynamic, and continuously learning from incidents.
 
-- Runs entirely client-side (no backend)
-- All data is stored locally in your browser (localStorage)
-- No data is transmitted, stored, or shared externally
-- No login or account required
-
-**Note:** Your data will remain on your device unless you export it or clear your browser storage.
+### Seven Governance Dimensions
+1. **Decision Traceability (`traceability`)**: The ability to reconstruct how and why AI-supported decisions were reached, documenting human overrides and provenance.
+2. **Human–AI Boundary Clarity (`boundary_clarity`)**: Clarity on where AI autonomy ends and human accountability begins, including explicit override triggers.
+3. **Risk Awareness & Management (`risk_management`)**: Systematic identification, classification, and mitigation of AI-specific operational and ethical failure modes.
+4. **Oversight & Accountability (`accountability`)**: Institutional structures, designated roles, and executive escalation paths for AI systems.
+5. **Policy & Governance Alignment (`policy_alignment`)**: Integration of AI practices with organisational values, ethical frameworks, and statutory standards.
+6. **Review & Reflection Practices (`review_practices`)**: Periodic evaluation cycles, post-deployment audits, and critical reflection on AI tool necessity.
+7. **Institutional Learning & Renewal (`learning_capability`)**: The habit of capturing post-incident debriefs and translating operational insights into updated guardrails.
 
 ---
 
-## 🖼️ Interface Preview
+## 📊 Interpretation of Scores & Insights
 
-![AI Governance Maturity Assessment Screenshot](docs/screenshot.png)
+### Governance Readiness Index (0–100%)
+An equally weighted index across the 7 dimensions (`(sum of scores / 21) * 100`).
+> **Integrity Notice**: In partial assessments, unanswered dimensions are factored into the readiness index at Level 0 (Unmanaged) rather than omitted. This ensures the index never conceals incomplete assessments or provides false confidence.
 
-*Example view of the Governance Profile showing maturity distribution, interpreted patterns, and fragility signals.*
+### Gap-to-Action Remediation
+Rule-based tactical recommendations automatically generated for dimensions scoring at Level 0 or Level 1. Actions provide immediate, concrete steps to establish baseline governance.
+
+### Strategic Improvement Pathways
+Derived pathways offering differentiated guidance:
+- Remedial priorities for dimensions at Level 0 or 1.
+- Strengthening guidance for dimensions established at Level 2.
+- Resilience stress-testing and sector knowledge-sharing for Level 3 practices.
+
+### Heuristic Fragility Signals & Divergent Patterns
+Identifies structural imbalances between dimensions (e.g., *High Reliance, Low Reflection* or *Strong Applied Practice, Weak Oversight*). These signals represent potential organizational risks, not certified failure states.
+
+---
+
+## 💾 Local Storage, Import, Export & History
+
+### Local Storage Buffer
+All assessment states are automatically saved to `localStorage` under `cloudpedagogy_ai_governance_assessment_v1`.
+When starting a new assessment, the active record is preserved in a circular history buffer (`cloudpedagogy_ai_gov_history_v1`) holding up to 5 snapshots.
+
+### Assessment Import & Active Work Protection
+- **Safe Validation**: Imported JSON files are validated against the schema before loading.
+- **Protection of Active Work**: If the user has active unsaved work, a confirmation dialog appears before replacing data, and the existing assessment is automatically archived to the history buffer.
+- **Intelligent Navigation**: Fully scored imports navigate directly to the Results dashboard; partial imports navigate to the first incomplete dimension.
+
+### History Snapshots & Trend Comparison
+- **History Modal**: Review past snapshots, inspect readiness ratings, restore any snapshot as the active assessment, or remove obsolete records.
+- **Trend Comparison**: Compare the active assessment against any previous snapshot or uploaded external JSON, visualizing dimensional deltas and overall trajectory.
 
 ---
 
 ## 🛠️ Getting Started
 
-### Clone the repository
+### Prerequisites
+- Node.js (v18 or higher recommended)
+- npm (v9 or higher)
 
+### Installation
 ```bash
-git clone [repository-url]
-cd [repository-folder]
-```
+# Clone the repository
+git clone https://github.com/cloudpedagogy/cloudpedagogy-ai-governance-maturity-assessment.git
+cd cloudpedagogy-ai-governance-maturity-assessment
 
-### Install dependencies
-
-```bash
+# Install dependencies
 npm install
 ```
 
-### Run locally
-
+### Development Server
 ```bash
 npm run dev
 ```
+Starts the Vite development server (typically at `http://localhost:5173`).
 
-Once running, your terminal will display a local URL (often http://localhost:5173). Open this in your browser to use the application.
+### Automated Testing
+```bash
+# Run unit and workflow integration tests
+npm test
 
-### Build for production
+# Run tests in watch mode
+npm run test:watch
+```
 
+### Production Build
 ```bash
 npm run build
 ```
-
-The production build will be generated in the `dist/` directory and can be deployed to any static hosting service.
-
----
-
-## 🔐 Privacy & Security
-
-- **Fully local**: All data remains in the user's browser  
-- **No backend**: No external API calls or database storage  
-- **Privacy-preserving**: No tracking or data exfiltration  
-- Suitable for use in sensitive organisational and governance contexts  
+Generates a static production bundle in `dist/` with relative asset links (`./assets/...`).
 
 ---
 
-## Disclaimer
+## 🚀 Standalone Deployment & Studio Embedding
 
-This repository contains exploratory, framework-aligned tools developed for reflection, learning, and discussion.
-
-These tools are provided **as-is** and are not production systems, audits, or compliance instruments. Outputs are indicative only and should be interpreted in context using professional judgement.
-
-All applications are designed to run locally in the browser. No user data is collected, stored, or transmitted.
-
-All example data and structures are synthetic and do not represent any real institution, programme, or curriculum.
-
----
-
-## Licensing & Scope
-
-This repository contains open-source software released under the MIT License.
-
-CloudPedagogy frameworks and related materials are licensed separately and are not embedded or enforced within this software.
+- **Zero-Backend Static Deployment**: Deploy `dist/` to any static file hosting service:
+  - AWS S3 / CloudFront
+  - Cloudflare Pages
+  - GitHub Pages
+  - Netlify / Vercel
+- **Studio Embedding**: Because all asset paths are relative (`./`), the built application can be embedded seamlessly within an `<iframe>` inside the CloudPedagogy AI Management Studio or delivered as a standalone offline tool.
 
 ---
 
-## About CloudPedagogy
+## ⚠️ Methodological Disclaimers & Known Limitations
 
-CloudPedagogy develops open, governance-credible resources for building confident, responsible AI capability across education, research, and public service.
+- **Self-Assessment Instrument**: This tool reflects internal self-reported practices and subjective reflection. It is an analytical diagnostic instrument for organizational learning and capability development.
+- **Not Statutory Compliance**: Scoring does not guarantee compliance with the EU AI Act, ISO/IEC 42001, NIST AI RMF, or other regulatory frameworks.
+- **No Remote Telemetry**: Data is confined entirely to the browser environment. Clearing browser storage will delete unsaved snapshots unless exported to JSON or Markdown.
 
-- Framework: https://github.com/cloudpedagogy/cloudpedagogy-ai-capability-framework
+---
 
-## Capability and Governance
+## 📄 Licence & Scope
 
-This tool supports both AI capability development and lightweight governance.
-
-- **Capability** is developed through structured interaction with real workflows
-- **Governance** is supported through optional fields that make assumptions, risks, and decisions visible
-
-All governance inputs are optional and designed to support — not constrain — professional judgement.
-
+This project is open-source software released under the **MIT License**.
+See [LICENSE](LICENSE) for details.

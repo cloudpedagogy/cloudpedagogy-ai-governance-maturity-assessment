@@ -641,3 +641,246 @@ details[open] .gov-summary::before {
 .disclaimer-banner {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
+
+/* Batch 3: Dimension Stepper Navigation (B3.2) */
+.stepper-nav {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.stepper-container {
+  display: flex;
+  gap: 0.5rem;
+  min-width: max-content;
+  align-items: center;
+}
+
+.stepper-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius);
+  background-color: #f9fafb;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.stepper-step:hover {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+  color: var(--text-primary);
+}
+
+.stepper-step.active {
+  background-color: #111111;
+  color: #ffffff;
+  border-color: #111111;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.stepper-step.active .step-badge {
+  background-color: #ffffff;
+  color: #111111;
+}
+
+.step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #e5e7eb;
+  color: #374151;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.stepper-step.answered:not(.active) .step-badge {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.step-title {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Batch 3: Evidence Pill Edit and Delete Controls (B3.3) */
+.pill-edit {
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.pill-edit:hover {
+  color: #1d4ed8 !important;
+  transform: scale(1.15);
+}
+
+/* Batch 3: Detailed Dimension Breakdown Table (B3.3) */
+.dimension-breakdown-table-wrapper {
+  margin-top: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: #ffffff;
+}
+
+.dimension-breakdown-table th, 
+.dimension-breakdown-table td {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dimension-breakdown-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.dimension-breakdown-table tbody tr:hover {
+  background-color: #fafafa;
+}
+
+/* Batch 3: History & Dialog Modals */
+.history-modal-content {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.history-item:hover {
+  background-color: #f9fafb;
+}
+
+/* Batch 3: High-Contrast & Usability Enhancements (B3.5) */
+:focus-visible {
+  outline: 2px solid #111111;
+  outline-offset: 2px;
+}
+
+/* Batch 3: Comprehensive Print and PDF Presentation (B3.4) */
+@media print {
+  /* Hide interactive navigation, buttons, and decorative controls */
+  .hide-in-print,
+  .nav-buttons,
+  .stepper-nav,
+  .progress-bar,
+  button,
+  input,
+  select,
+  textarea,
+  .modal-overlay,
+  .site-footer,
+  .brand-link,
+  .pill-edit,
+  .pill-delete,
+  .revisit-dim-btn,
+  .revisit-first-unanswered-btn,
+  #importUpload,
+  #compareUpload,
+  #importResultsUpload {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  .site-header {
+    border-bottom: 2px solid #000000 !important;
+    padding: 1rem 0 !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  .header-container, #app {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .card {
+    border: 1px solid #cccccc !important;
+    box-shadow: none !important;
+    margin-bottom: 1.5rem !important;
+    padding: 1rem !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .readiness-gauge {
+    border: 1px solid #000000 !important;
+    background-color: #ffffff !important;
+  }
+
+  .readiness-fill {
+    background-color: #000000 !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* Force expandable details open during printing so essential governance notes are not concealed */
+  details {
+    display: block !important;
+  }
+
+  details > * {
+    display: block !important;
+  }
+
+  details .gov-summary {
+    font-weight: 700 !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  details .gov-summary::before {
+    display: none !important;
+  }
+
+  .dimension-breakdown-table {
+    border: 1px solid #000000 !important;
+    font-size: 9.5pt !important;
+  }
+
+  .dimension-breakdown-table th,
+  .dimension-breakdown-table td {
+    border: 1px solid #cccccc !important;
+    padding: 0.5rem !important;
+  }
+
+  .dimension-breakdown-table th {
+    background-color: #f0f0f0 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+  }
+
+  .badge {
+    border: 1px solid #333333 !important;
+    background: transparent !important;
+    color: #000000 !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  .disclaimer-banner {
+    border-left: 4px solid #000000 !important;
+    background: #f9f9f9 !important;
+  }
+
+  /* Avoid splitting critical sections across pages */
+  .profile-grid, .results-grid, table, tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  h1, h2, h3, h4 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    color: #000000 !important;
+  }
+}
