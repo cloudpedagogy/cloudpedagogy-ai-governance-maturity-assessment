@@ -1,5 +1,14 @@
 import type { Schema, AssessmentRecord } from '../types';
 import { calculateGovernanceProfile, exportToJSON, exportToMarkdown } from '../logic/assessment';
+import { escapeHtml, escapeAttr } from '../logic/security';
+import { validateAssessmentRecord } from '../logic/validation';
+import {
+    loadAssessmentFromStorage,
+    saveAssessmentToStorage,
+    clearAssessmentFromStorage,
+    loadHistoryFromStorage,
+    saveHistoryToStorage
+} from '../logic/storage';
 
 export class AssessmentUI {
     private schema: Schema;
@@ -41,32 +50,84 @@ export class AssessmentUI {
         });
     }
 
-    private async showModal(title: string, message: string, confirmLabel: string = 'OK', showCancel: boolean = false): Promise<boolean> {
+    private async showModal(
+        title: string,
+        message: string,
+        confirmLabel: string = 'OK',
+        showCancel: boolean = false
+    ): Promise<boolean> {
         return new Promise((resolve) => {
+            const prevFocused = document.activeElement as HTMLElement | null;
+
             const overlay = document.createElement('div');
             overlay.className = 'modal-overlay';
-            overlay.innerHTML = `
-                <div class="modal-content">
-                    <h3>${title}</h3>
-                    <p>${message}</p>
-                    <div class="modal-actions">
-                        ${showCancel ? `<button class="secondary" id="modalCancel">Cancel</button>` : ''}
-                        <button class="primary" id="modalConfirm">${confirmLabel}</button>
-                    </div>
-                </div>
-            `;
+            overlay.setAttribute('role', 'dialog');
+            overlay.setAttribute('aria-modal', 'true');
+            overlay.setAttribute('aria-labelledby', 'modalTitle');
+
+            const content = document.createElement('div');
+            content.className = 'modal-content';
+
+            const h3 = document.createElement('h3');
+            h3.id = 'modalTitle';
+            h3.textContent = title;
+
+            const p = document.createElement('p');
+            p.style.whiteSpace = 'pre-wrap';
+            p.textContent = message;
+
+            const actions = document.createElement('div');
+            actions.className = 'modal-actions';
+
+            let cancelBtn: HTMLButtonElement | null = null;
+            if (showCancel) {
+                cancelBtn = document.createElement('button');
+                cancelBtn.type = 'button';
+                cancelBtn.className = 'secondary';
+                cancelBtn.id = 'modalCancel';
+                cancelBtn.textContent = 'Cancel';
+                actions.appendChild(cancelBtn);
+            }
+
+            const confirmBtn = document.createElement('button');
+            confirmBtn.type = 'button';
+            confirmBtn.className = 'primary';
+            confirmBtn.id = 'modalConfirm';
+            confirmBtn.textContent = confirmLabel;
+            actions.appendChild(confirmBtn);
+
+            content.appendChild(h3);
+            content.appendChild(p);
+            content.appendChild(actions);
+            overlay.appendChild(content);
             document.body.appendChild(overlay);
 
+            confirmBtn.focus();
+
             const cleanup = (result: boolean) => {
-                document.body.removeChild(overlay);
+                document.removeEventListener('keydown', keyHandler);
+                if (overlay.parentNode) {
+                    overlay.parentNode.removeChild(overlay);
+                }
+                if (prevFocused && typeof prevFocused.focus === 'function') {
+                    prevFocused.focus();
+                }
                 resolve(result);
             };
 
-            overlay.querySelector('#modalConfirm')?.addEventListener('click', (e) => {
+            const keyHandler = (e: KeyboardEvent) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cleanup(false);
+                }
+            };
+            document.addEventListener('keydown', keyHandler);
+
+            confirmBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 cleanup(true);
             });
-            overlay.querySelector('#modalCancel')?.addEventListener('click', (e) => {
+            cancelBtn?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 cleanup(false);
             });
@@ -94,6 +155,9 @@ export class AssessmentUI {
     }
 
     private renderWelcome() {
+        const safeOrgName = this.currentRecord.organisation_name || '';
+        const hasSaved = Boolean(safeOrgName || Object.keys(this.currentRecord.scores).length > 0);
+
         this.container.innerHTML = `
             <div class="card animate-fade">
                 <div class="dimension-description">
@@ -103,7 +167,7 @@ export class AssessmentUI {
                 
                 <div class="form-group">
                     <label for="orgName" class="semibold">Organisation Name</label>
-                    <input type="text" id="orgName" value="${this.currentRecord.organisation_name || ''}" placeholder="Enter organisation name...">
+                    <input type="text" id="orgName" placeholder="Enter organisation name...">
                 </div>
                 
                 <div class="card" style="margin-top: 2rem;">
@@ -118,12 +182,12 @@ export class AssessmentUI {
                     </div>
                 </div>
 
-                ${this.currentRecord.organisation_name ? `<p class="muted" style="text-align: center;">You have a saved assessment. Beginning will resume your progress.</p>` : ''}
+                ${hasSaved ? `<p class="muted" style="text-align: center;">You have a saved assessment. Beginning will resume your progress.</p>` : ''}
                 
                 <div class="nav-buttons" style="justify-content: center;">
-                    <button type="button" class="primary" id="startBtn">${this.currentRecord.organisation_name ? 'Continue Assessment' : 'Begin Assessment'}</button>
+                    <button type="button" class="primary" id="startBtn">${hasSaved ? 'Continue Assessment' : 'Begin Assessment'}</button>
                     <button type="button" class="secondary" id="demoBtn">Try Healthcare Demo</button>
-                    ${this.currentRecord.organisation_name ? `<button type="button" class="secondary" id="clearAll" style="color: var(--color-text-secondary);">Clear Progress</button>` : ''}
+                    ${hasSaved ? `<button type="button" class="secondary" id="clearAll" style="color: var(--color-text-secondary);">Clear Progress</button>` : ''}
                 </div>
             </div>
             
@@ -132,20 +196,44 @@ export class AssessmentUI {
             </div>
         `;
 
+        // Safe DOM property assignment for text input
+        const orgNameInput = this.container.querySelector('#orgName') as HTMLInputElement;
+        if (orgNameInput) {
+            orgNameInput.value = safeOrgName;
+            orgNameInput.addEventListener('input', () => {
+                this.currentRecord.organisation_name = orgNameInput.value.trim();
+                this.saveToStorage();
+            });
+        }
+
+        // Mode change listener
+        this.container.querySelectorAll('input[name="mode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const modeVal = (e.target as HTMLInputElement).value;
+                this.currentRecord.team_mode = modeVal === 'team';
+                this.saveToStorage();
+            });
+        });
+
         this.container.querySelector('#startBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
-            const orgName = (this.container.querySelector('#orgName') as HTMLInputElement).value;
-            const mode = (this.container.querySelector('input[name="mode"]:checked') as HTMLInputElement).value;
+            const currentOrgInput = this.container.querySelector('#orgName') as HTMLInputElement;
+            const orgName = currentOrgInput ? currentOrgInput.value.trim() : '';
+            const checkedMode = this.container.querySelector('input[name="mode"]:checked') as HTMLInputElement;
+            const mode = checkedMode ? checkedMode.value : 'individual';
             this.currentRecord.organisation_name = orgName || 'Default Organisation';
             this.currentRecord.team_mode = mode === 'team';
             this.saveToStorage();
             
-            // Resume logic
-            if (Object.keys(this.currentRecord.scores).length > 0) {
-                this.currentDimensionIndex = Object.keys(this.currentRecord.scores).length;
-                if (this.currentDimensionIndex >= this.schema.dimensions.length) {
-                    this.currentDimensionIndex = this.schema.dimensions.length;
-                }
+            // Resume logic: find first unanswered dimension index
+            const firstUnansweredIndex = this.schema.dimensions.findIndex(
+                dim => this.currentRecord.scores[dim.id] === undefined
+            );
+
+            if (firstUnansweredIndex !== -1) {
+                this.currentDimensionIndex = firstUnansweredIndex;
+            } else if (Object.keys(this.currentRecord.scores).length >= this.schema.dimensions.length) {
+                this.currentDimensionIndex = this.schema.dimensions.length; // Results
             } else {
                 this.currentDimensionIndex = 0;
             }
@@ -163,7 +251,7 @@ export class AssessmentUI {
 
         this.container.querySelector('#demoBtn')?.addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (this.currentRecord.organisation_name) {
+            if (this.currentRecord.organisation_name || Object.keys(this.currentRecord.scores).length > 0) {
                 const confirmed = await this.showModal('Load Demo', 'Loading the demo will replace your current progress. Continue?', 'Load Demo', true);
                 if (!confirmed) return;
             }
@@ -205,6 +293,8 @@ export class AssessmentUI {
     private renderDimension() {
         const dim = this.schema.dimensions[this.currentDimensionIndex];
         const progress = ((this.currentDimensionIndex) / this.schema.dimensions.length) * 100;
+        const currentScore = this.currentRecord.scores[dim.id];
+        const currentNotes = this.currentRecord.notes[dim.id] || '';
 
         this.container.innerHTML = `
             <div class="progress-bar">
@@ -212,44 +302,55 @@ export class AssessmentUI {
             </div>
             <p style="text-align: right; color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 1rem;">Dimension ${this.currentDimensionIndex + 1} of ${this.schema.dimensions.length}</p>
             <div class="card animate-slide">
-                <h2 class="dimension-title">${dim.name}</h2>
-                <p class="dimension-description">${dim.description}</p>
+                <h2 class="dimension-title">${escapeHtml(dim.name)}</h2>
+                <p class="dimension-description">${escapeHtml(dim.description)}</p>
                 
                 <div class="reflective-prompts">
                     <h4>Reflection Scaffold</h4>
                     <ul>
-                        ${dim.reflective_prompts.map(p => `<li>${p}</li>`).join('')}
+                        ${dim.reflective_prompts.map(p => `<li>${escapeHtml(p)}</li>`).join('')}
                     </ul>
                 </div>
 
                 <div class="scoring-section">
-                    <h3 style="margin-bottom: 0.5rem;">1. Assessment Input: ${this.currentRecord.team_mode ? 'Your team\'s current level' : 'Your current level'}</h3>
+                    <h3 style="margin-bottom: 0.5rem;">1. Assessment Input: ${this.currentRecord.team_mode ? "Your team's current level" : 'Your current level'}</h3>
                     <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1.5rem;">Select the state that best represents your ${this.currentRecord.team_mode ? 'collective' : 'individual'} practice.</p>
                     
-                    <div class="scoring-grid" id="scoringGrid">
-                        ${this.schema.levels.map((level, idx) => {
-                            const isSelected = this.currentRecord.scores[dim.id] === level.id;
-                            return `
-                            <label class="score-option ${isSelected ? 'selected' : ''}" for="level-${level.id}">
-                                <input type="radio" id="level-${level.id}" name="maturity-level" value="${level.id}" ${isSelected ? 'checked' : ''} style="display: none;">
-                                <div style="display: flex; align-items: flex-start; gap: 0rem;">
-                                    <div class="radio-indicator ${isSelected ? 'active' : ''}" style="margin-top: 4px;"></div>
-                                    <div>
-                                        <div class="score-value">${level.id}</div>
-                                        <div class="score-label">${level.name}</div>
-                                        <div class="score-desc">${dim.levels[idx]}</div>
+                    <fieldset class="scoring-fieldset">
+                        <legend class="sr-only">${escapeHtml(dim.name)} maturity level options</legend>
+                        <div class="scoring-grid" id="scoringGrid" role="radiogroup" aria-label="${escapeAttr(dim.name)} maturity level options">
+                            ${this.schema.levels.map((level, idx) => {
+                                const isSelected = currentScore === level.id;
+                                return `
+                                <label class="score-option ${isSelected ? 'selected' : ''}" for="level-${level.id}">
+                                    <input 
+                                        type="radio" 
+                                        id="level-${level.id}" 
+                                        name="maturity-level" 
+                                        value="${level.id}" 
+                                        class="visually-hidden-radio"
+                                        ${isSelected ? 'checked' : ''}
+                                        aria-checked="${isSelected}"
+                                    >
+                                    <div style="display: flex; align-items: flex-start; gap: 0rem;">
+                                        <div class="radio-indicator ${isSelected ? 'active' : ''}" style="margin-top: 4px;" aria-hidden="true"></div>
+                                        <div>
+                                            <div class="score-value">${level.id}</div>
+                                            <div class="score-label">${escapeHtml(level.name)}</div>
+                                            <div class="score-desc">${escapeHtml(dim.levels[idx])}</div>
+                                        </div>
                                     </div>
-                                </div>
-                            </label>
-                            `;
-                        }).join('')}
-                    </div>
+                                </label>
+                                `;
+                            }).join('')}
+                        </div>
+                    </fieldset>
                 </div>
 
                 <div class="notes-section" style="margin-top: 2.5rem;">
                     <h3>2. Reflective notes (Optional)</h3>
                     <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">Capture ${this.currentRecord.team_mode ? 'team observations' : 'personal observations'} and evidence for your oversight teams.</p>
-                    <textarea id="notes" placeholder="Enter reflective notes here...">${this.currentRecord.notes[dim.id] || ''}</textarea>
+                    <textarea id="notes" placeholder="Enter reflective notes here..."></textarea>
                 </div>
 
                 <div class="artefacts-section" style="margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
@@ -258,7 +359,7 @@ export class AssessmentUI {
                     <div id="artefactList" style="margin-bottom: 1rem;">
                         ${this.currentRecord.artefacts
                             .filter(a => a.type === 'workflow') 
-                            .map(a => `<div class="pill">${a.ref}</div>`).join('')}
+                            .map(a => `<div class="pill">${escapeHtml(a.ref)}</div>`).join('')}
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
                         <input type="text" id="artefactRef" placeholder="Reference ID (e.g. WF-101)" style="flex-grow: 1;">
@@ -273,18 +374,31 @@ export class AssessmentUI {
             </div>
         `;
 
-        // Selection Handler via Radio Changes
+        // Safe DOM property assignment for notes textarea & live auto-save
+        const notesArea = this.container.querySelector('#notes') as HTMLTextAreaElement;
+        if (notesArea) {
+            notesArea.value = currentNotes;
+            notesArea.addEventListener('input', () => {
+                this.currentRecord.notes[dim.id] = notesArea.value;
+                this.saveToStorage();
+            });
+        }
+
+        // Selection Handler via Radio Changes (supports mouse click, keyboard arrow navigation, and tab selection)
         this.container.querySelectorAll('input[name="maturity-level"]').forEach(input => {
             input.addEventListener('change', (e) => {
                 e.stopPropagation();
                 const val = (e.target as HTMLInputElement).value;
-                const score = parseInt(val);
+                const score = parseInt(val, 10);
                 this.currentRecord.scores[dim.id] = score;
                 
-                // Visual update
+                // Visual update and accessible aria attributes
                 this.container.querySelectorAll('.score-option').forEach(opt => opt.classList.remove('selected'));
                 this.container.querySelectorAll('.radio-indicator').forEach(rad => rad.classList.remove('active'));
+                this.container.querySelectorAll('input[name="maturity-level"]').forEach(inp => inp.setAttribute('aria-checked', 'false'));
                 
+                const currentInput = e.target as HTMLInputElement;
+                currentInput.setAttribute('aria-checked', 'true');
                 const label = this.container.querySelector(`label[for="level-${val}"]`);
                 label?.classList.add('selected');
                 label?.querySelector('.radio-indicator')?.classList.add('active');
@@ -293,23 +407,30 @@ export class AssessmentUI {
             });
         });
 
+        // Previous button: save notes first!
         this.container.querySelector('#prevBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
+            const currentNotesArea = this.container.querySelector('#notes') as HTMLTextAreaElement;
+            if (currentNotesArea) {
+                this.currentRecord.notes[dim.id] = currentNotesArea.value;
+            }
+            this.saveToStorage();
             this.currentDimensionIndex--;
             this.render();
         });
 
+        // Next button: save notes and require score before advancing
         this.container.querySelector('#nextBtn')?.addEventListener('click', async (e) => {
             e.stopPropagation();
             e.preventDefault();
-            const notesArea = this.container.querySelector('#notes') as HTMLTextAreaElement;
-            if (notesArea) {
-                this.currentRecord.notes[dim.id] = notesArea.value;
+            const currentNotesArea = this.container.querySelector('#notes') as HTMLTextAreaElement;
+            if (currentNotesArea) {
+                this.currentRecord.notes[dim.id] = currentNotesArea.value;
             }
             
-            const currentScore = this.currentRecord.scores[dim.id];
-            if (currentScore === undefined) {
+            const currentScoreVal = this.currentRecord.scores[dim.id];
+            if (currentScoreVal === undefined) {
                 await this.showModal('Input Required', `Please select a maturity level for "${dim.name}" before proceeding.`);
                 return;
             }
@@ -319,12 +440,14 @@ export class AssessmentUI {
             this.render();
         });
 
+        // Add artefact reference
         this.container.querySelector('#addArtefact')?.addEventListener('click', (_e) => {
             const input = this.container.querySelector('#artefactRef') as HTMLInputElement;
-            if (input.value) {
+            const refVal = input ? input.value.trim() : '';
+            if (refVal) {
                 this.currentRecord.artefacts.push({
                     type: 'workflow',
-                    ref: input.value,
+                    ref: refVal,
                     name: 'Manual Reference'
                 });
                 input.value = '';
@@ -336,14 +459,19 @@ export class AssessmentUI {
 
     private renderResults(previousRecord?: AssessmentRecord) {
         const history = this.getHistory();
-        const latestHistory = previousRecord || (history.length > 0 ? history[0] : undefined);
+        // Only auto-compare if previousRecord is explicitly passed OR latest history entry matches the same organisation
+        let autoHistory: AssessmentRecord | undefined;
+        if (history.length > 0 && this.currentRecord.organisation_name && history[0].organisation_name === this.currentRecord.organisation_name) {
+            autoHistory = history[0];
+        }
+        const latestHistory = previousRecord || autoHistory;
         const profile = calculateGovernanceProfile(this.schema, this.currentRecord, latestHistory);
         
         this.container.innerHTML = `
             <div class="animate-fade">
                 <div class="results-header" style="text-align: center; margin-bottom: 3rem;">
-                    <h2>Governance Profile: ${this.currentRecord.organisation_name}</h2>
-                    <p class="muted">${this.currentRecord.team_mode ? 'Team Discussion Mode' : 'Individual Reflection Mode'} &middot; ${this.currentRecord.date_created}</p>
+                    <h2>Governance Profile: ${escapeHtml(this.currentRecord.organisation_name)}</h2>
+                    <p class="muted">${this.currentRecord.team_mode ? 'Team Discussion Mode' : 'Individual Reflection Mode'} &middot; ${escapeHtml(this.currentRecord.date_created)}</p>
                     
                     <div class="readiness-index-container" style="margin-top: 2.5rem; display: flex; flex-direction: column; align-items: center;">
                         <span class="subtitle">Governance Readiness Index</span>
@@ -351,7 +479,7 @@ export class AssessmentUI {
                             <div class="readiness-fill" style="width: ${profile.readinessIndex}%"></div>
                         </div>
                         <div style="font-size: 3rem; font-weight: 800; color: var(--color-primary-default); margin-top: 0.5rem;">${profile.readinessIndex}%</div>
-                        <p class="semibold" style="margin-top: 0.5rem; color: var(--color-text-secondary);">${profile.overallMaturity}</p>
+                        <p class="semibold" style="margin-top: 0.5rem; color: var(--color-text-secondary);">${escapeHtml(profile.overallMaturity)}</p>
                     </div>
                 </div>
 
@@ -359,7 +487,7 @@ export class AssessmentUI {
                 <div class="card" style="margin-bottom: 2rem; border: 1px solid var(--color-primary-light); background: #f0f9ff;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <h3 style="margin: 0;">Trend Comparison</h3>
-                        <span class="muted">Compared to ${profile.comparison.previousDate}</span>
+                        <span class="muted">Compared to ${escapeHtml(profile.comparison.previousDate)}</span>
                     </div>
                     <div style="display: flex; gap: 2rem; margin-top: 1rem;">
                         <div style="flex: 1;">
@@ -372,7 +500,7 @@ export class AssessmentUI {
                             <span class="subtitle">Dimension Deltas</span>
                             <div style="display: flex; gap: 4px; height: 10px; margin-top: 0.5rem;">
                                 ${Object.entries(profile.comparison.deltas).map(([id, delta]) => `
-                                    <div title="${id}: ${delta}" style="flex-grow: 1; background: ${delta > 0 ? '#10b981' : delta < 0 ? '#ef4444' : '#e5e7eb'}; border-radius: 1px;"></div>
+                                    <div title="${escapeAttr(id)}: ${delta}" style="flex-grow: 1; background: ${delta > 0 ? '#10b981' : delta < 0 ? '#ef4444' : '#e5e7eb'}; border-radius: 1px;"></div>
                                 `).join('')}
                             </div>
                         </div>
@@ -386,10 +514,10 @@ export class AssessmentUI {
                         <div class="gap-action-table" style="margin-top: 1rem;">
                             ${profile.gapActions.length > 0 ? profile.gapActions.map(a => `
                                 <div style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--border-color); align-items: flex-start;">
-                                    <span class="badge ${a.priority.toLowerCase()}">${a.priority}</span>
+                                    <span class="badge ${escapeAttr(a.priority.toLowerCase())}">${escapeHtml(a.priority)}</span>
                                     <div>
-                                        <div class="semibold" style="font-size: 0.875rem; color: var(--color-text-secondary); text-transform: capitalize;">${a.dimension.replace('_', ' ')}</div>
-                                        <div style="font-size: 0.9375rem; margin-top: 0.25rem;">${a.action}</div>
+                                        <div class="semibold" style="font-size: 0.875rem; color: var(--color-text-secondary); text-transform: capitalize;">${escapeHtml(a.dimension.replace(/_/g, ' '))}</div>
+                                        <div style="font-size: 0.9375rem; margin-top: 0.25rem;">${escapeHtml(a.action)}</div>
                                     </div>
                                 </div>
                             `).join('') : '<p class="muted" style="padding: 1rem;">No immediate gap-based actions identified. Governance practice is established.</p>'}
@@ -402,7 +530,7 @@ export class AssessmentUI {
                         <h3>Artefacts & Evidence</h3>
                         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
                             ${this.currentRecord.artefacts.length > 0 ? this.currentRecord.artefacts.map(a => `
-                                <div class="pill" title="${a.name}">${a.ref}</div>
+                                <div class="pill" title="${escapeAttr(a.name)}">${escapeHtml(a.ref)}</div>
                             `).join('') : '<p class="muted">No artefacts linked to this assessment.</p>'}
                         </div>
                     </div>
@@ -414,15 +542,15 @@ export class AssessmentUI {
                         <div class="profile-column-container">
                             <div class="profile-column">
                                 <h4 class="semibold">Strong Areas</h4>
-                                <ul>${profile.strong.map(s => `<li>${s}</li>`).join('') || '<li class="muted">None identified</li>'}</ul>
+                                <ul>${profile.strong.map(s => `<li>${escapeHtml(s)}</li>`).join('') || '<li class="muted">None identified</li>'}</ul>
                             </div>
                             <div class="profile-column">
                                 <h4 class="semibold">Developing Areas</h4>
-                                <ul>${profile.developing.map(s => `<li>${s}</li>`).join('') || '<li class="muted">None identified</li>'}</ul>
+                                <ul>${profile.developing.map(s => `<li>${escapeHtml(s)}</li>`).join('') || '<li class="muted">None identified</li>'}</ul>
                             </div>
                             <div class="profile-column">
                                 <h4 class="semibold">Strengthening Required</h4>
-                                <ul>${profile.weak.map(s => `<li>${s}</li>`).join('') || '<li class="muted">None identified</li>'}</ul>
+                                <ul>${profile.weak.map(s => `<li>${escapeHtml(s)}</li>`).join('') || '<li class="muted">None identified</li>'}</ul>
                             </div>
                         </div>
                     </div>
@@ -434,8 +562,8 @@ export class AssessmentUI {
                         <div class="pattern-list">
                             ${profile.patterns.map(p => `
                                 <div class="pattern-item">
-                                    <strong class="semibold">${p.name}</strong>
-                                    <p>${p.implication}</p>
+                                    <strong class="semibold">${escapeHtml(p.name)}</strong>
+                                    <p>${escapeHtml(p.implication)}</p>
                                 </div>
                             `).join('')}
                         </div>
@@ -444,7 +572,7 @@ export class AssessmentUI {
                     <div class="card">
                         <h3>Governance Fragility Signals</h3>
                         <ul class="fragility-list">
-                            ${profile.fragilitySignals.map(s => `<li>${s}</li>`).join('') || '<li class="muted">No immediate fragility signals detected.</li>'}
+                            ${profile.fragilitySignals.map(s => `<li>${escapeHtml(s)}</li>`).join('') || '<li class="muted">No immediate fragility signals detected.</li>'}
                         </ul>
                     </div>
                 </div>
@@ -467,12 +595,12 @@ export class AssessmentUI {
                             <div class="gov-field">
                                 <label for="capabilityNotes">Capability Notes</label>
                                 <p class="gov-help">How this tool supports development of practical AI capability through structured interaction.</p>
-                                <textarea id="capabilityNotes" class="gov-textarea" placeholder="Enter capability development notes...">${this.currentRecord.capabilityNotes || ''}</textarea>
+                                <textarea id="capabilityNotes" class="gov-textarea" placeholder="Enter capability development notes..."></textarea>
                             </div>
                             <div class="gov-field" style="margin-top: 1.5rem;">
                                 <label for="governanceNotes">Governance Notes</label>
                                 <p class="gov-help">Make assumptions, risks, and decisions visible and reviewable.</p>
-                                <textarea id="governanceNotes" class="gov-textarea" placeholder="Enter governance, risk, or rationale notes...">${this.currentRecord.governanceNotes || ''}</textarea>
+                                <textarea id="governanceNotes" class="gov-textarea" placeholder="Enter governance, risk, or rationale notes..."></textarea>
                             </div>
                         </div>
                     </details>
@@ -480,16 +608,43 @@ export class AssessmentUI {
             </div>
         `;
 
+        // Safe DOM property assignment for capability and governance notes
+        const capNotesArea = this.container.querySelector('#capabilityNotes') as HTMLTextAreaElement;
+        if (capNotesArea) {
+            capNotesArea.value = this.currentRecord.capabilityNotes || '';
+            capNotesArea.addEventListener('input', (e) => {
+                this.currentRecord.capabilityNotes = (e.target as HTMLTextAreaElement).value;
+                this.saveToStorage();
+            });
+        }
+
+        const govNotesArea = this.container.querySelector('#governanceNotes') as HTMLTextAreaElement;
+        if (govNotesArea) {
+            govNotesArea.value = this.currentRecord.governanceNotes || '';
+            govNotesArea.addEventListener('input', (e) => {
+                this.currentRecord.governanceNotes = (e.target as HTMLTextAreaElement).value;
+                this.saveToStorage();
+            });
+        }
+
         this.container.querySelector('#jsonBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             const data = exportToJSON(this.currentRecord);
-            this.downloadFile(data, `governance-profile-${this.currentRecord.organisation_name.toLowerCase().replace(/\s+/g, '-')}.json`, 'application/json');
+            const safeFileName = (this.currentRecord.organisation_name || 'assessment')
+                .toLowerCase()
+                .replace(/[^a-z0-9_-]/gi, '-')
+                .replace(/-+/g, '-');
+            this.downloadFile(data, `governance-profile-${safeFileName}.json`, 'application/json');
         });
 
         this.container.querySelector('#mdBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             const data = exportToMarkdown(this.currentRecord, profile);
-            this.downloadFile(data, `governance-profile-${this.currentRecord.organisation_name.toLowerCase().replace(/\s+/g, '-')}.md`, 'text/markdown');
+            const safeFileName = (this.currentRecord.organisation_name || 'assessment')
+                .toLowerCase()
+                .replace(/[^a-z0-9_-]/gi, '-')
+                .replace(/-+/g, '-');
+            this.downloadFile(data, `governance-profile-${safeFileName}.md`, 'text/markdown');
         });
 
         this.container.querySelector('#printBtn')?.addEventListener('click', (e) => {
@@ -497,27 +652,41 @@ export class AssessmentUI {
             window.print();
         });
 
+        const compareInput = this.container.querySelector('#compareUpload') as HTMLInputElement;
         this.container.querySelector('#compareBtn')?.addEventListener('click', (e) => {
             e.stopPropagation();
-            (this.container.querySelector('#compareUpload') as HTMLInputElement).click();
+            compareInput?.click();
         });
 
-        this.container.querySelector('#compareUpload')?.addEventListener('change', (e) => {
+        compareInput?.addEventListener('change', (e) => {
             const file = (e.target as HTMLInputElement).files?.[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (re) => {
-                    try {
-                        const prevData = JSON.parse(re.target?.result as string);
-                        // Re-render results with comparison
-                        const profileWithComp = calculateGovernanceProfile(this.schema, this.currentRecord, prevData);
-                        this.renderResultsWithComparison(profileWithComp, prevData);
-                    } catch (err) {
-                        alert('Invalid comparison file. Please upload a valid assessment JSON.');
-                    }
-                };
-                reader.readAsText(file);
-            }
+            if (!file) return;
+
+            // Reset input value immediately so user can re-upload the same file after correcting it
+            compareInput.value = '';
+
+            const reader = new FileReader();
+            reader.onload = async (re) => {
+                const rawContent = re.target?.result as string;
+                let parsed: unknown;
+                try {
+                    parsed = JSON.parse(rawContent);
+                } catch {
+                    await this.showModal('Invalid JSON File', 'The uploaded file could not be parsed as JSON. Please ensure it is a valid assessment JSON file.');
+                    return;
+                }
+
+                const validation = validateAssessmentRecord(parsed, this.schema.dimensions.map(d => d.id));
+                if (!validation.isValid || !validation.record) {
+                    const message = 'The comparison file is invalid:\n\n• ' + validation.errors.join('\n• ');
+                    await this.showModal('Comparison Validation Failed', message);
+                    return;
+                }
+
+                // Valid comparison file: calculate comparison and re-render
+                this.renderResultsWithComparison(validation.record);
+            };
+            reader.readAsText(file);
         });
 
         this.container.querySelector('#homeBtn')?.addEventListener('click', (e) => {
@@ -525,58 +694,36 @@ export class AssessmentUI {
             this.saveToHistory(); // Circular buffer save before clearing
             this.resetAssessment();
         });
-
-        // Gov Layer Listeners
-        this.container.querySelector('#capabilityNotes')?.addEventListener('input', (e) => {
-            this.currentRecord.capabilityNotes = (e.target as HTMLTextAreaElement).value;
-            this.saveToStorage();
-        });
-        this.container.querySelector('#governanceNotes')?.addEventListener('input', (e) => {
-            this.currentRecord.governanceNotes = (e.target as HTMLTextAreaElement).value;
-            this.saveToStorage();
-        });
     }
 
-    private renderResultsWithComparison(_profile: any, previousRecord: AssessmentRecord) {
-        this.renderResults(previousRecord); 
+    private renderResultsWithComparison(previousRecord: AssessmentRecord) {
+        this.renderResults(previousRecord);
     }
 
     private saveToHistory() {
         const history = this.getHistory();
         // Circular buffer of 5
         const newHistory = [this.currentRecord, ...history].slice(0, 5);
-        localStorage.setItem('ai_gov_history', JSON.stringify(newHistory));
+        saveHistoryToStorage(newHistory, window.localStorage);
     }
 
     private getHistory(): AssessmentRecord[] {
-        try {
-            const data = localStorage.getItem('ai_gov_history');
-            return data ? JSON.parse(data) : [];
-        } catch (e) {
-            return [];
-        }
+        return loadHistoryFromStorage(window.localStorage, this.schema.dimensions.map(d => d.id));
     }
 
-
     private resetAssessment() {
-        localStorage.removeItem('ai_gov_assessment');
+        clearAssessmentFromStorage(window.localStorage);
         this.currentDimensionIndex = -1;
         this.currentRecord = this.createNewRecord();
         this.render();
     }
 
     private saveToStorage() {
-        localStorage.setItem('ai_gov_assessment', JSON.stringify(this.currentRecord));
+        saveAssessmentToStorage(this.currentRecord, window.localStorage);
     }
 
     private loadFromStorage(): AssessmentRecord | null {
-        try {
-            const data = localStorage.getItem('ai_gov_assessment');
-            return data ? JSON.parse(data) : null;
-        } catch (e) {
-            console.error('Failed to load assessment from storage', e);
-            return null;
-        }
+        return loadAssessmentFromStorage(window.localStorage, this.schema.dimensions.map(d => d.id));
     }
 
     private downloadFile(content: string, fileName: string, contentType: string) {
