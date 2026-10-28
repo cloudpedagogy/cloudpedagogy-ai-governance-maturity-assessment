@@ -26,19 +26,31 @@ describe('B3.2: Dimension Stepper Navigation and Assessment Review', () => {
 
         const stepper = container.querySelector('.stepper-nav');
         expect(stepper).not.toBeNull();
-        expect(stepper?.getAttribute('aria-label')).toBe('Governance dimensions stepper');
+        expect(stepper?.getAttribute('aria-label')).toBe('Assessment dimensions progress');
+
+        const stepperList = stepper?.querySelector('ol.stepper-container');
+        expect(stepperList).not.toBeNull();
+        expect(stepperList?.getAttribute('role')).toBeNull(); // No ARIA tablist
+
+        const listItems = stepper?.querySelectorAll('li.stepper-item');
+        expect(listItems).toHaveLength(7);
 
         const steps = container.querySelectorAll('.stepper-step');
         expect(steps).toHaveLength(7);
 
-        // First step should be active
+        // First step should be active with aria-current="step"
         expect(steps[0].classList.contains('active')).toBe(true);
-        expect(steps[0].getAttribute('aria-selected')).toBe('true');
+        expect(steps[0].getAttribute('aria-current')).toBe('step');
+        expect(steps[0].getAttribute('role')).toBeNull(); // No ARIA tab
+        expect(steps[0].getAttribute('aria-selected')).toBeNull();
         expect(steps[0].textContent).toContain('Decision Traceability');
 
-        // Other steps should be unanswered and not active
+        // Other steps should be unanswered and not active, without aria-current
         expect(steps[1].classList.contains('active')).toBe(false);
         expect(steps[1].classList.contains('unanswered')).toBe(true);
+        expect(steps[1].getAttribute('aria-current')).toBeNull();
+        expect(steps[1].getAttribute('aria-selected')).toBeNull();
+
     });
 
     it('accurately displays answered status badge when dimension is scored', () => {

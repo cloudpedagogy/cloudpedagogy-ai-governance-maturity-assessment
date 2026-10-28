@@ -589,6 +589,12 @@ details[open] .gov-summary::before {
   border-color: #ccc !important;
 }
 
+/* Dedicated Print View for Capability & Governance Notes (Hidden on screen) */
+.gov-print-notes-card {
+  display: none;
+}
+
+
 /* Batch 2: Evidence, Insights & Reflection Styling */
 .badge.workflow {
   background-color: #f3f4f6;
@@ -654,7 +660,15 @@ details[open] .gov-summary::before {
   gap: 0.5rem;
   min-width: max-content;
   align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
+
+.stepper-item {
+  display: inline-flex;
+}
+
 
 .stepper-step {
   display: inline-flex;
@@ -841,6 +855,19 @@ details[open] .gov-summary::before {
   details .gov-summary::before {
     display: none !important;
   }
+
+  /* Render institutional capability and governance notes cleanly in print */
+  .gov-print-notes-card {
+    display: block !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .print-note-text {
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+  }
+
 
   .dimension-breakdown-table {
     border: 1px solid #000000 !important;

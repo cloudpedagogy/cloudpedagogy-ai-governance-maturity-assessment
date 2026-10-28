@@ -84,8 +84,8 @@ Identifies structural imbalances between dimensions (e.g., *High Reliance, Low R
 ## 💾 Local Storage, Import, Export & History
 
 ### Local Storage Buffer
-All assessment states are automatically saved to `localStorage` under `cloudpedagogy_ai_governance_assessment_v1`.
-When starting a new assessment, the active record is preserved in a circular history buffer (`cloudpedagogy_ai_gov_history_v1`) holding up to 5 snapshots.
+All assessment states are automatically saved to `localStorage` under `cp_aigov_assessment_v1`.
+When starting a new assessment, the active record is preserved in a circular history buffer (`cp_aigov_history_v1`) holding up to 5 snapshots.
 
 ### Assessment Import & Active Work Protection
 - **Safe Validation**: Imported JSON files are validated against the schema before loading.

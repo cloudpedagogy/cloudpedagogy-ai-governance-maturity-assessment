@@ -21,9 +21,41 @@ export class AssessmentUI {
         this.schema = schema;
         this.container = container;
         this.currentRecord = this.loadFromStorage() || this.createNewRecord();
+        this.setupPrintHandlers();
     }
 
+    private static printHandlersInitialized = false;
+
+    public setupPrintHandlers() {
+        if (typeof window === 'undefined') return;
+        if (AssessmentUI.printHandlersInitialized) return;
+        AssessmentUI.printHandlersInitialized = true;
+        window.addEventListener('beforeprint', AssessmentUI.handleBeforePrint);
+        window.addEventListener('afterprint', AssessmentUI.handleAfterPrint);
+    }
+
+    public static handleBeforePrint = () => {
+        const detailsList = document.querySelectorAll('details');
+        detailsList.forEach(d => {
+            if (!d.hasAttribute('data-was-open')) {
+                d.setAttribute('data-was-open', d.open ? 'true' : 'false');
+            }
+            d.open = true;
+        });
+    };
+
+    public static handleAfterPrint = () => {
+        const detailsList = document.querySelectorAll('details');
+        detailsList.forEach(d => {
+            if (d.hasAttribute('data-was-open')) {
+                d.open = d.getAttribute('data-was-open') === 'true';
+                d.removeAttribute('data-was-open');
+            }
+        });
+    };
+
     private createNewRecord(): AssessmentRecord {
+
         return {
             assessment_id: this.generateUUID(),
             organisation_name: '',
@@ -603,28 +635,29 @@ export class AssessmentUI {
         const currentNotes = this.currentRecord.notes[dim.id] || '';
 
         this.container.innerHTML = `
-            <!-- Dimension Stepper Navigation (B3.2) -->
-            <nav class="stepper-nav" aria-label="Governance dimensions stepper" style="margin-bottom: 1.5rem;">
-                <div class="stepper-container" role="tablist">
+            <!-- Dimension Stepper Navigation (B3.2 / Correction B) -->
+            <nav class="stepper-nav" aria-label="Assessment dimensions progress" style="margin-bottom: 1.5rem;">
+                <ol class="stepper-container" style="list-style: none; padding: 0; margin: 0; display: flex; gap: 0.5rem; min-width: max-content; align-items: center;">
                     ${this.schema.dimensions.map((d, idx) => {
                         const isCurrent = idx === this.currentDimensionIndex;
                         const isAnswered = this.currentRecord.scores[d.id] !== undefined;
                         const statusText = isAnswered ? `Answered: Level ${this.currentRecord.scores[d.id]}` : 'Unanswered';
                         return `
-                            <button type="button" 
-                                role="tab"
-                                class="stepper-step ${isCurrent ? 'active' : ''} ${isAnswered ? 'answered' : 'unanswered'}" 
-                                data-index="${idx}"
-                                aria-selected="${isCurrent}"
-                                aria-label="${escapeAttr(`Dimension ${idx + 1}: ${d.name} (${statusText})`)}"
-                                title="${escapeAttr(`${d.name} (${statusText})`)}"
-                            >
-                                <span class="step-badge" aria-hidden="true">${isAnswered ? '✓' : idx + 1}</span>
-                                <span class="step-title">${escapeHtml(d.name)}</span>
-                            </button>
+                            <li class="stepper-item" style="display: inline-flex;">
+                                <button type="button" 
+                                    class="stepper-step ${isCurrent ? 'active' : ''} ${isAnswered ? 'answered' : 'unanswered'}" 
+                                    data-index="${idx}"
+                                    ${isCurrent ? 'aria-current="step"' : ''}
+                                    aria-label="${escapeAttr(`Dimension ${idx + 1}: ${d.name} (${statusText})`)}"
+                                    title="${escapeAttr(`${d.name} (${statusText})`)}"
+                                >
+                                    <span class="step-badge" aria-hidden="true">${isAnswered ? '✓' : idx + 1}</span>
+                                    <span class="step-title">${escapeHtml(d.name)}</span>
+                                </button>
+                            </li>
                         `;
                     }).join('')}
-                </div>
+                </ol>
             </nav>
 
             <div class="progress-bar">
@@ -997,7 +1030,7 @@ export class AssessmentUI {
                                                 `}
                                             </td>
                                             <td style="padding: 1rem;">
-                                                ${noteText ? `<p style="margin: 0; font-size: 0.8125rem; color: var(--text-primary); line-height: 1.4;">${escapeHtml(noteText)}</p>` : `<span class="muted" style="font-size: 0.8125rem; font-style: italic;">No reflective notes recorded</span>`}
+                                                ${noteText ? `<div style="margin: 0; font-size: 0.8125rem; color: var(--text-primary); line-height: 1.4; white-space: pre-wrap;">${escapeHtml(noteText)}</div>` : `<span class="muted" style="font-size: 0.8125rem; font-style: italic;">No reflective notes recorded</span>`}
                                             </td>
                                             <td style="padding: 1rem;">
                                                 ${dimArtefacts.length > 0 ? `
@@ -1216,7 +1249,8 @@ export class AssessmentUI {
                 <!-- Lightweight capability and governance layer -->
                 <!-- Optional, non-blocking, and does not alter core workflow -->
                 <div class="gov-layer-section" style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
-                    <details class="gov-details">
+                    <!-- On-screen interactive collapsible details with textareas -->
+                    <details class="gov-details hide-in-print">
                         <summary class="gov-summary">Capability & Governance Notes (Optional)</summary>
                         <div class="gov-content" style="padding-top: 1.5rem;">
                             <div class="gov-field">
@@ -1231,25 +1265,44 @@ export class AssessmentUI {
                             </div>
                         </div>
                     </details>
+
+                    <!-- Dedicated Print View for Capability & Governance Notes (Correction A) -->
+                    <div class="gov-print-notes-card card" style="margin-top: 2rem;">
+                        <h3 style="margin-bottom: 1rem; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem;">Institutional Capability & Governance Notes</h3>
+                        <div style="margin-bottom: 1.25rem;">
+                            <h4 style="margin-bottom: 0.25rem; font-size: 0.75rem; text-transform: uppercase; color: #333;">Capability Notes</h4>
+                            <div id="printCapabilityNotes" class="print-note-text" style="white-space: pre-wrap; font-size: 0.875rem; line-height: 1.5; color: #111;">${escapeHtml(this.currentRecord.capabilityNotes || 'None recorded.')}</div>
+                        </div>
+                        <div>
+                            <h4 style="margin-bottom: 0.25rem; font-size: 0.75rem; text-transform: uppercase; color: #333;">Governance & Rationale Notes</h4>
+                            <div id="printGovernanceNotes" class="print-note-text" style="white-space: pre-wrap; font-size: 0.875rem; line-height: 1.5; color: #111;">${escapeHtml(this.currentRecord.governanceNotes || 'None recorded.')}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
 
-        // Safe DOM property assignment for capability and governance notes
+        // Safe DOM property assignment for capability and governance notes & live sync with print view
         const capNotesArea = this.container.querySelector('#capabilityNotes') as HTMLTextAreaElement;
+        const printCapNotes = this.container.querySelector('#printCapabilityNotes');
         if (capNotesArea) {
             capNotesArea.value = this.currentRecord.capabilityNotes || '';
             capNotesArea.addEventListener('input', (e) => {
-                this.currentRecord.capabilityNotes = (e.target as HTMLTextAreaElement).value;
+                const val = (e.target as HTMLTextAreaElement).value;
+                this.currentRecord.capabilityNotes = val;
+                if (printCapNotes) printCapNotes.textContent = val || 'None recorded.';
                 this.saveToStorage();
             });
         }
 
         const govNotesArea = this.container.querySelector('#governanceNotes') as HTMLTextAreaElement;
+        const printGovNotes = this.container.querySelector('#printGovernanceNotes');
         if (govNotesArea) {
             govNotesArea.value = this.currentRecord.governanceNotes || '';
             govNotesArea.addEventListener('input', (e) => {
-                this.currentRecord.governanceNotes = (e.target as HTMLTextAreaElement).value;
+                const val = (e.target as HTMLTextAreaElement).value;
+                this.currentRecord.governanceNotes = val;
+                if (printGovNotes) printGovNotes.textContent = val || 'None recorded.';
                 this.saveToStorage();
             });
         }
